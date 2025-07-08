@@ -1,0 +1,78 @@
+{
+  "name": "@arden/cli",
+  "version": "1.0.0",
+  "description": "A CLI tool for Arden",
+  "main": "dist/index.js",
+  "type": "commonjs",
+  "bin": {
+    "arden": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "bun src/index.ts",
+    "start": "node dist/index.js",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "tsup": {
+    "entry": [
+      "src/index.ts"
+    ],
+    "format": [
+      "cjs"
+    ],
+    "dts": true,
+    "splitting": false,
+    "sourcemap": true,
+    "clean": true,
+    "minify": true,
+    "outDir": "dist",
+    "target": "node20",
+    "platform": "node",
+    "banner": {
+      "js": "#!/usr/bin/env node\n"
+    },
+    "noExternal": [
+      "commander",
+      "chalk",
+      "pino",
+      "pino-pretty"
+    ],
+    "external": [
+      "fs",
+      "path",
+      "os",
+      "crypto",
+      "events",
+      "util",
+      "stream",
+      "buffer",
+      "process",
+      "child_process"
+    ]
+  },
+  "keywords": [
+    "cli",
+    "arden"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsup": "^8.0.2",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "dotenv": "^16.4.5",
+    "pino": "^9.3.1",
+    "pino-pretty": "^11.2.1",
+    "znv": "^0.4.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "dist"
+  ]
+}
