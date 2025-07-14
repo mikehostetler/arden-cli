@@ -1,14 +1,14 @@
-import { z, parseEnv } from "znv";
 import dotenv from "dotenv";
 
 dotenv.config();
 
-const env = parseEnv(process.env, {
-  LOG_LEVEL: z.string().optional().default("info"),
-  NODE_ENV: z.string().optional().default("development"),
-  ARDEN_API_URL: z.string().url().optional().default("https://api.arden.dev"),
-  ARDEN_API_TOKEN: z.string().optional().default(""),
-});
+const env = {
+  LOG_LEVEL: process.env["LOG_LEVEL"] || "info",
+  NODE_ENV: process.env["NODE_ENV"] || "development",
+  ARDEN_API_URL: process.env["ARDEN_API_URL"] || "https://api.arden.dev",
+  ARDEN_API_TOKEN: process.env["ARDEN_API_TOKEN"] || "",
+  HOST: process.env["HOST"] || "https://ardenstats.com/api/v1",
+};
 
 // Cannot use logging here because it will cause a circular dependency
 if (env.LOG_LEVEL === "debug") {
@@ -16,7 +16,10 @@ if (env.LOG_LEVEL === "debug") {
   console.log(`  LOG_LEVEL: ${env.LOG_LEVEL}`);
   console.log(`  NODE_ENV: ${env.NODE_ENV}`);
   console.log(`  ARDEN_API_URL: ${env.ARDEN_API_URL}`);
-  console.log(`  ARDEN_API_TOKEN: ${env.ARDEN_API_TOKEN ? '[SET]' : '[NOT SET]'}`);
+  console.log(
+    `  ARDEN_API_TOKEN: ${env.ARDEN_API_TOKEN ? "[SET]" : "[NOT SET]"}`
+  );
+  console.log(`  HOST: ${env.HOST}`);
 }
 
 export default env;

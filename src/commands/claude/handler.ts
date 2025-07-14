@@ -1,10 +1,11 @@
 import logger from '../../util/logger';
-import { sendTelemetry } from '../../util/statsClient';
+import { sendTelemetry } from '../../util/client';
 import { ClaudeHook } from './hooks';
 
 export interface ClaudeHookOptions {
   dryRun: boolean;
   print: boolean;
+  host?: string;
 }
 
 export async function handleClaudeHook(
@@ -43,7 +44,7 @@ export async function handleClaudeHook(
     }
 
     // Send telemetry to Arden Stats API
-    await sendTelemetry(`claude.${hook}`, enriched);
+    await sendTelemetry(`claude.${hook}`, enriched, opts.host);
     logger.debug(`Successfully sent telemetry for hook: ${hook}`);
 
   } catch (error) {

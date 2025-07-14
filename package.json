@@ -12,7 +12,8 @@
     "dev": "bun src/index.ts",
     "start": "node dist/index.js",
     "clean": "rm -rf dist",
-    "prepublishOnly": "npm run clean && npm run build"
+    "prepublishOnly": "npm run clean && npm run build",
+    "test:integration": "npm run build && bun test/integration.ts"
   },
   "tsup": {
     "entry": [
@@ -65,9 +66,11 @@
   "dependencies": {
     "commander": "^12.1.0",
     "dotenv": "^16.4.5",
+    "ky": "^1.8.1",
     "pino": "^9.3.1",
     "pino-pretty": "^11.2.1",
-    "znv": "^0.4.0"
+    "znv": "^0.4.0",
+    "zod": "^4.0.0"
   },
   "engines": {
     "node": ">=18.0.0"
