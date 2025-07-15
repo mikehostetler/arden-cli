@@ -104,7 +104,9 @@ export class Client {
         delete options.json;
       }
       
-      const response = await httpClient.post('api/v1/events', options).json<TelemetryResponse>();
+      logger.debug(`Making POST request to: ${this.host}/api/events`);
+      const response = await httpClient.post('api/events', options).json<TelemetryResponse>();
+      logger.debug(`Received response: ${JSON.stringify(response)}`);
       return response;
     } catch (error) {
       logger.error('Failed to send telemetry chunk:', error);
@@ -196,4 +198,19 @@ export async function sendTelemetry(
   } catch (error) {
     logger.error(`[TELEMETRY] Failed to send ${event} to ${host || env.HOST}:`, error);
   }
+}
+
+// Convenience function for creating a simple HTTP client
+export async function createClient(host: string): Promise<KyInstance> {
+  const { default: ky } = await import('ky');
+  
+  return ky.create({
+    prefixUrl: host,
+    timeout: 30000,
+    retry: 3,
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+  });
 }

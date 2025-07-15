@@ -10,7 +10,6 @@ interface BatchOptions {
   file: string;
   chunk?: string;
   token?: string;
-  host?: string;
   dryRun?: boolean;
   print?: boolean;
 }
@@ -20,10 +19,9 @@ export const batchCommand = new Command('batch')
   .requiredOption('--file <path>', 'JSON file containing events (supports .gz)')
   .option('--chunk <size>', 'Chunk size for batching', '50')
   .option('-t, --token <token>', 'Bearer token for authentication')
-  .option('-H, --host <url>', 'API host URL')
   .option('--dry-run', 'Validate and print but do not send')
   .option('--print', 'Pretty-print the event payloads')
-  .action(async (options: BatchOptions) => {
+  .action(async (options: BatchOptions, command: Command) => {
     try {
       // Read file
       let fileData: Buffer | string;
@@ -56,9 +54,13 @@ export const batchCommand = new Command('batch')
         return;
       }
 
+      // Get global host option from root command
+      const globalOptions = command.parent?.parent?.opts() || {};
+      const host = globalOptions.host;
+      
       // Send events
       const clientOptions = {
-        host: options.host || env.HOST,
+        host: host || env.HOST,
         token: options.token || process.env.ARDEN_API_TOKEN,
       };
 

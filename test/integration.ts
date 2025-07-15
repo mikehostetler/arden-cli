@@ -85,13 +85,13 @@ class IntegrationTester {
 
   async testSingleEventSubmission(): Promise<void> {
     const result = await this.runCLI([
+      '--host', this.host,
       'events', 'send',
-      '--agent', 'A-12345678',
+      '--agent', 'A-8139',
       '--user', '01ARZ3NDEKTSV4RRFFQ69G5FAV',
       '--bid', '100',
       '--mult', '1',
       '--data', '{"test": "integration"}',
-      '--host', this.host,
       '--token', this.token
     ]);
 
@@ -121,12 +121,12 @@ class IntegrationTester {
 
   async testEventValidation(): Promise<void> {
     const result = await this.runCLI([
+      '--host', this.host,
       'events', 'send',
-      '--agent', 'A-12345678',
+      '--agent', 'A-8139',
       '--bid', '100',
       '--data', '{"validation": "test"}',
       '--dry-run',
-      '--host', this.host,
       '--token', this.token
     ]);
 
@@ -142,10 +142,10 @@ class IntegrationTester {
 
   async testMissingRequiredAgent(): Promise<void> {
     const result = await this.runCLI([
+      '--host', this.host,
       'events', 'send',
       '--bid', '100',
       '--data', '{"test": "missing-agent"}',
-      '--host', this.host,
       '--token', this.token
     ]);
 
@@ -160,10 +160,10 @@ class IntegrationTester {
 
   async testKeyValueDataParsing(): Promise<void> {
     const result = await this.runCLI([
-      'events', 'send',
-      '--agent', 'A-12345678',
-      '--dry-run',
       '--host', this.host,
+      'events', 'send',
+      '--agent', 'A-8139',
+      '--dry-run',
       '--token', this.token,
       'key1=value1',
       'key2=123',

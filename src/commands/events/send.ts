@@ -13,7 +13,6 @@ interface SendOptions {
   time?: string;
   data?: string;
   token?: string;
-  host?: string;
   dryRun?: boolean;
   print?: boolean;
 }
@@ -27,12 +26,18 @@ export const sendCommand = new Command('send')
   .option('--time <ms>', 'Timestamp in epoch milliseconds')
   .option('--data <json>', 'Data payload as JSON string, @file, or - for stdin')
   .option('-t, --token <token>', 'Bearer token for authentication')
-  .option('-H, --host <url>', 'API host URL')
   .option('--dry-run', 'Validate and print but do not send')
   .option('--print', 'Pretty-print the event payload')
   .allowUnknownOption()
   .action(async (options: SendOptions, command: Command) => {
     try {
+      logger.debug(`Command options: ${JSON.stringify(options, null, 2)}`);
+      
+      // Get global host option from root command
+      const globalOptions = command.parent?.parent?.opts() || {};
+      const host = globalOptions.host;
+      logger.debug(`Global host option: ${host}`);
+      
       // Parse remaining arguments as key=value pairs
       const remainingArgs = command.args;
       const keyValueData: Record<string, string | number> = {};
@@ -101,15 +106,18 @@ export const sendCommand = new Command('send')
 
       // Send event
       const clientOptions = {
-        host: options.host || env.HOST,
+        host: host || env.HOST,
         token: options.token || process.env.ARDEN_API_TOKEN,
       };
 
-      const response = await sendEvents([validatedEvent], clientOptions);
-      
-      if (response.status === 'accepted') {
-        logger.info(`Event sent successfully. ID: ${response.event_ids?.[0]}`);
-      } else if (response.status === 'partial') {
+      logger.debug(`Sending event with client options: ${JSON.stringify(clientOptions)}`);
+      try {
+        const response = await sendEvents([validatedEvent], clientOptions);
+        logger.debug(`Response: ${JSON.stringify(response)}`);
+        
+        if (response.status === 'accepted') {
+          logger.info(`Event sent successfully. ID: ${response.event_ids?.[0]}`);
+        } else if (response.status === 'partial') {
         logger.warn(`Event partially processed. Accepted: ${response.accepted_count}, Rejected: ${response.rejected_count}`);
         if (response.rejected) {
           for (const error of response.rejected) {
@@ -123,6 +131,10 @@ export const sendCommand = new Command('send')
             logger.error(`Error: ${error.error}`);
           }
         }
+      }
+      } catch (error) {
+        logger.error(`Failed to send event: ${error.message}`);
+        throw error;
       }
 
     } catch (error) {

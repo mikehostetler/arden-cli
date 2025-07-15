@@ -26,9 +26,6 @@ npm install -g @arden/cli
 # Show help
 arden --help
 
-# Test the CLI
-arden hello --name "Developer"
-
 # Show version
 arden --version
 ```
@@ -82,6 +79,45 @@ The CLI includes built-in support for Claude Code hooks:
 # Handle Claude hooks (used internally)
 arden claude PreToolUse --dry-run
 arden claude PostToolUse --print
+```
+
+### Agent Management
+
+List and view leaderboards for agents:
+
+```bash
+# List all agents
+arden agents list --limit 10
+
+# View agents leaderboard
+arden agents leaderboard
+
+# View today's leaderboard with simulated data
+arden agents leaderboard --period today --mode simulated
+
+# View 30-day leaderboard with real data
+arden agents leaderboard --period 30d --mode real
+
+# Get JSON output
+arden agents leaderboard --json
+```
+
+### User Management
+
+View user leaderboards:
+
+```bash
+# View users leaderboard
+arden users leaderboard
+
+# View today's user leaderboard
+arden users leaderboard --period today --mode simulated
+
+# View 30-day user leaderboard
+arden users leaderboard --period 30d --mode real
+
+# Get JSON output
+arden users leaderboard --json
 ```
 
 ### Amp Integration
@@ -154,7 +190,7 @@ The CLI uses environment variables for configuration:
 export ARDEN_API_TOKEN="your-bearer-token"
 
 # Optional configuration
-export HOST="https://ardenstats.com/api/v1"
+export HOST="https://ardenstats.com"
 export LOG_LEVEL="info"  # debug, info, warn, error
 export NODE_ENV="development"
 ```
@@ -170,8 +206,8 @@ You can also create a `.env` file in your project root with these variables.
 export ARDEN_API_TOKEN="your-bearer-token"
 export LOG_LEVEL="debug"
 
-# Test connection
-arden hello --name "$(whoami)"
+# Test connection with agents list
+arden agents list --limit 5
 
 # Send development event
 arden events send --agent "A-DEV12345" \
@@ -244,8 +280,14 @@ npm run clean
 ### Testing
 
 ```bash
-# Test with hello command
-bun run dev hello --name "Test"
+# Test with agents list
+bun run dev agents list --limit 5
+
+# Test agents leaderboard
+bun run dev agents leaderboard --period today --mode simulated
+
+# Test users leaderboard
+bun run dev users leaderboard --mode simulated
 
 # Test event sending (dry run)
 bun run dev events send --agent "A-TEST123" --dry-run --print action=test

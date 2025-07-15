@@ -2,6 +2,8 @@ import { Command } from "commander";
 import { claudeCommand } from "./commands/claude";
 import { ampCommand } from "./commands/amp";
 import { eventsCommand } from "./commands/events";
+import { agentsCommand } from "./commands/agents";
+import { usersCommand } from "./commands/users";
 import logger from "./util/logger";
 import env from "./util/env";
 import { readFileSync } from "fs";
@@ -22,11 +24,13 @@ program
   .name("arden")
   .description("Arden CLI tool")
   .version(version)
-  .option("-H, --host <url>", "API host URL", env.HOST);
+  .option('-H, --host <url>', 'API host URL', env.HOST);
 
 program.addCommand(claudeCommand);
 program.addCommand(ampCommand);
 program.addCommand(eventsCommand);
+program.addCommand(agentsCommand());
+program.addCommand(usersCommand());
 
 // CLI parsing with error handling
 program.parseAsync(process.argv).catch((error) => {
