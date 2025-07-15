@@ -1,11 +1,11 @@
 {
   "name": "@arden/cli",
   "version": "1.0.0",
-  "description": "A CLI tool for Arden",
+  "description": "A CLI tool for ArdenStats.com",
   "main": "dist/index.js",
   "type": "commonjs",
   "bin": {
-    "arden": "./dist/index.js"
+    "arden": "dist/index.js"
   },
   "scripts": {
     "build": "tsup",

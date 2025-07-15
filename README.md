@@ -1,13 +1,12 @@
 # Arden CLI
 
-A powerful command-line tool for sending AI agent telemetry and logs to the Arden Stats API. Built with TypeScript and designed for seamless integration with AI coding assistants like Claude and Amp.
+A powerful command-line tool for sending AI agent telemetry and logs to the Arden Stats API. Built with TypeScript and designed for seamless integration with AI coding assistants, with **Claude Code hooks** as the primary integration strategy.
 
 ## 🚀 Features
 
+- **🎯 Claude Code Integration**: Primary integration strategy with built-in hooks for automatic usage tracking
 - **Agent Telemetry**: Send structured telemetry events to the Arden Stats API
 - **Batch Processing**: Handle multiple events efficiently with automatic chunking
-- **Claude Integration**: Built-in hooks for Claude Code integration
-- **Amp Integration**: Import and process Amp file change data
 - **Flexible Data Input**: Support for JSON, files, stdin, and key-value pairs
 - **Robust Error Handling**: Comprehensive validation and retry logic
 - **Development-Friendly**: Pretty logging and debug modes
@@ -15,7 +14,7 @@ A powerful command-line tool for sending AI agent telemetry and logs to the Arde
 ## 📦 Installation
 
 ```bash
-npm install -g @arden/cli
+npm i -g arden
 ```
 
 ## 🎯 Usage
@@ -71,14 +70,13 @@ arden events validate --agent "A-12345678" --data '{"test": true}'
 arden events validate events.json
 ```
 
-### Claude Integration
+### Manual Event Submission
 
-The CLI includes built-in support for Claude Code hooks:
+For advanced use cases or custom integrations, you can manually submit events:
 
 ```bash
-# Handle Claude hooks (used internally)
-arden claude PreToolUse --dry-run
-arden claude PostToolUse --print
+# Submit single event
+arden events submit --agent "A-12345678" --data '{"action": "custom_task"}'
 ```
 
 ### Agent Management
@@ -120,22 +118,52 @@ arden users leaderboard --period 30d --mode real
 arden users leaderboard --json
 ```
 
-### Amp Integration
+## 🎯 Claude Code Integration (Primary Integration)
 
-Import Amp file changes into Arden Stats:
+The **recommended and primary way** to integrate with Arden is through Claude Code hooks. This provides automatic usage tracking when Claude completes coding tasks in your projects.
+
+### Why Claude Code Integration?
+
+- **Automatic Tracking**: No manual event submission required
+- **Session-Based Metrics**: Captures complete coding sessions with Claude
+- **Rich Context**: Includes session ID, transcript path, and completion data
+- **Zero Friction**: Works seamlessly with your existing Claude workflows
+
+### Setting up Claude Code Hooks
+
+1. **Install the Arden CLI** globally:
+   ```bash
+   npm i -g arden
+   ```
+
+2. **Configure Claude Code hooks** in your `~/.claude/settings.json`:
+   ```json
+   {
+     "hooks": {
+       "Stop": "arden claude Stop"
+     }
+   }
+   ```
+
+3. **Usage events are automatically tracked** when Claude completes tasks and stops
+
+### How It Works
+
+When Claude Code finishes a session, it triggers the `Stop` hook which:
+- Receives session data (session_id, transcript_path, etc.) via stdin
+- Automatically sends a usage event to Arden with agent ID `A-CLAUDECODE`  
+- Tracks your Claude coding sessions without any manual intervention
+
+The `arden claude Stop` command is designed **exclusively for use within Claude Code hooks** and accepts the standard Claude hook data format as documented in the [Claude Code hooks documentation](https://docs.anthropic.com/en/docs/claude-code/hooks).
+
+### Testing Your Setup
 
 ```bash
-# Import all Amp threads
-arden amp import
+# Test the hook configuration (for debugging only)
+echo '{"session_id": "test123", "hook_event_name": "Stop"}' | arden claude Stop --dry-run
 
-# Import specific thread
-arden amp import --thread "T-12345678-abcd-efgh-ijkl-mnopqrstuvwx"
-
-# Dry run to see what would be imported
-arden amp import --dry-run
-
-# Import changes since specific date
-arden amp import --since "2024-01-01T00:00:00Z"
+# Check if events are being sent
+arden agents list | grep A-CLAUDECODE
 ```
 
 ## 📊 Event Specification
@@ -160,26 +188,20 @@ Example event:
 }
 ```
 
-## 🔗 Claude Integration Setup
+## 🔗 Quick Start with Claude Code
 
-Configure Claude Code to send telemetry when agents stop:
+1. **Install Arden CLI**: `npm i -g arden`
+2. **Add Stop hook** to your `~/.claude/settings.json`:
+   ```json
+   {
+     "hooks": {
+       "Stop": "arden claude Stop"
+     }
+   }
+   ```
+3. **Start coding** - usage is automatically tracked when Claude completes tasks!
 
-1. Add this to your Claude hooks configuration:
-```json
-{
-  "Stop": "arden claude Stop"
-}
-```
-
-2. The CLI will automatically capture and send agent stop events to Arden Stats
-
-3. Optional: Set up additional hooks for other events:
-```json
-{
-  "Stop": "arden claude Stop",
-  "SubagentStop": "arden claude SubagentStop"
-}
-```
+Each completed Claude session sends an event to Arden with agent ID `A-CLAUDECODE`, allowing you to track your Claude usage seamlessly.
 
 ## 🔧 Configuration
 
@@ -255,8 +277,8 @@ cat events.json | arden events pipe
 echo '{"action": "autocomplete", "language": "typescript"}' | \
   arden events send --agent "A-EDITOR01" --data -
 
-# Process Amp changes after coding session
-arden amp import --since "$(date -u -d '1 hour ago' '+%Y-%m-%dT%H:%M:%SZ')"
+# Track Claude coding session automatically (hooks handle this)
+# No manual intervention needed - hooks automatically track usage
 ```
 
 ## 🔧 Development
@@ -280,17 +302,17 @@ npm run clean
 ### Testing
 
 ```bash
-# Test with agents list
+# Test with agents list (should show A-CLAUDECODE if events were sent)
 bun run dev agents list --limit 5
 
-# Test agents leaderboard
+# Test agents leaderboard (A-CLAUDECODE should appear after Claude sessions)
 bun run dev agents leaderboard --period today --mode simulated
 
 # Test users leaderboard
 bun run dev users leaderboard --mode simulated
 
-# Test event sending (dry run)
-bun run dev events send --agent "A-TEST123" --dry-run --print action=test
+# Test Claude hook command (for debugging)
+echo '{"session_id": "test123", "hook_event_name": "Stop"}' | bun run dev claude Stop --dry-run
 ```
 
 ## 🌟 Advanced Features
