@@ -56,8 +56,16 @@
     "cli",
     "arden"
   ],
-  "author": "",
+  "author": "Mike Hostetler <mike.hostetler@gmail.com>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mikehostetler/arden-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mikehostetler/arden-cli/issues"
+  },
+  "homepage": "https://ardenstats.com",
   "devDependencies": {
     "@types/node": "^22.0.0",
     "tsup": "^8.0.2",

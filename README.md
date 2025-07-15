@@ -13,8 +13,24 @@ A powerful command-line tool for sending AI agent telemetry and logs to the Arde
 
 ## 📦 Installation
 
+### From npm
+
 ```bash
 npm i -g arden
+```
+
+### From GitHub
+
+```bash
+# Install directly from GitHub
+npm i -g https://github.com/mikehostetler/arden-cli
+
+# Or clone and install locally
+git clone https://github.com/mikehostetler/arden-cli
+cd arden-cli
+npm install
+npm run build
+npm link
 ```
 
 ## 🎯 Usage
