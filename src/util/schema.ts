@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-// Agent ID regex: Case-insensitive with optional A-/a- prefix
-const agentRegex = /^(?:[aA]-)?[0-9a-fA-F]{1,8}$/;
+// Agent ID regex: Case-insensitive letters, numbers, and hyphens (matches backend validation)
+const agentRegex = /^[A-Z0-9-]+$/i;
 
 // ULID regex: Crockford base32 excluding I, L, O, U
 const ulidRegex = /^[0-9A-HJKMNP-TV-Z]{26}$/;

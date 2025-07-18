@@ -3,6 +3,7 @@ import { claudeCommand } from "./commands/claude";
 import { eventsCommand } from "./commands/events";
 import { agentsCommand } from "./commands/agents";
 import { usersCommand } from "./commands/users";
+import { configCommand } from "./commands/config";
 import logger from "./util/logger";
 import env from "./util/env";
 import { readFileSync } from "fs";
@@ -29,6 +30,7 @@ program.addCommand(claudeCommand);
 program.addCommand(eventsCommand);
 program.addCommand(agentsCommand());
 program.addCommand(usersCommand());
+program.addCommand(configCommand);
 
 // CLI parsing with error handling
 program.parseAsync(process.argv).catch((error) => {

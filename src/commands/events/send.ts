@@ -3,6 +3,7 @@ import { buildEvent, validateEvent } from '../../util/schema';
 import { sendEvents } from '../../util/client';
 import logger from '../../util/logger';
 import env from '../../util/env';
+import { getUserId, getApiToken } from '../../util/settings';
 import { readFileSync } from 'fs';
 
 interface SendOptions {
@@ -80,10 +81,13 @@ export const sendCommand = new Command('send')
       // Merge key=value pairs into data
       const finalData = { ...dataPayload, ...keyValueData };
 
+      // Get user ID with fallback priority: CLI option > env var > settings file
+      const userId = getUserId(options.user);
+
       // Build event with defaults
       const event = buildEvent({
         agent: options.agent,
-        user: options.user,
+        user: userId,
         time: options.time ? parseInt(options.time) : undefined,
         bid: parseInt(options.bid || '0'),
         mult: parseInt(options.mult || '0'),
@@ -107,7 +111,7 @@ export const sendCommand = new Command('send')
       // Send event
       const clientOptions = {
         host: host || env.HOST,
-        token: options.token || process.env.ARDEN_API_TOKEN,
+        token: getApiToken(options.token),
       };
 
       logger.debug(`Sending event with client options: ${JSON.stringify(clientOptions)}`);
@@ -116,7 +120,7 @@ export const sendCommand = new Command('send')
         logger.debug(`Response: ${JSON.stringify(response)}`);
         
         if (response.status === 'accepted') {
-          logger.info(`Event sent successfully. ID: ${response.event_ids?.[0]}`);
+          console.log(`✓ Event sent successfully`);
         } else if (response.status === 'partial') {
         logger.warn(`Event partially processed. Accepted: ${response.accepted_count}, Rejected: ${response.rejected_count}`);
         if (response.rejected) {
