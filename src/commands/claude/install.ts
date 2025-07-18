@@ -11,7 +11,7 @@ interface InstallOpts {
   dryRun: boolean;
 }
 
-const HOOK = 'SubagentStop';
+const HOOKS = ['Stop', 'SubagentStop'];
 
 export function buildInstallCommand(): Command {
   return new Command('install')
@@ -28,38 +28,33 @@ async function run(opts: InstallOpts, command: Command) {
   // Get host from parent command (global option)
   const parentOptions = command.parent?.parent?.opts() || {};
   const host = parentOptions['host'];
-  
-  const cmd = buildHookCommand({ host });
 
-  logger.info(`Configuring Claude Code hooks for: ${settingsPath}`);
+  console.log(`Configuring Claude Code hooks for: ${settingsPath}`);
 
   try {
-    const { json, modified } = await ensureHook(settingsPath, cmd);
+    const { json, modified } = await ensureHooks(settingsPath, host);
 
     if (!modified) {
-      logger.info('✅ Arden hook already present – nothing to do.');
+      console.log('✅ Arden hooks already present – nothing to do.');
       return;
     }
 
-    // Show what will be changed
-    logger.info(`Hook command: ${cmd}`);
-    
     if (opts.dryRun) {
-      logger.info('[DRY-RUN] New settings.json would be:');
+      console.log('[DRY-RUN] New settings.json would be:');
       console.log(JSON.stringify(json, null, 2));
       return;
     }
 
     if (!opts.yes && !(await confirm(`Write changes to ${settingsPath}? (y/N)`))) {
-      logger.info('Aborted.');
+      console.log('Aborted.');
       return;
     }
 
     await writeFileAtomic(settingsPath, JSON.stringify(json, null, 2) + '\n');
-    logger.info(`✅ Claude hook installed in ${settingsPath}`);
-    logger.info('Claude Code will now send SubagentStop events to Arden.');
+    console.log(`✅ Claude hooks installed in ${settingsPath}`);
+    console.log('Claude Code will now send Stop and SubagentStop events to Arden.');
   } catch (error) {
-    logger.error(`Failed to install Claude hook: ${(error as Error).message}`);
+    console.error(`Failed to install Claude hooks: ${(error as Error).message}`);
     process.exit(1);
   }
 }
@@ -68,16 +63,16 @@ function expandTilde(path: string): string {
   return path.replace(/^~(?=$|\/|\\)/, homedir());
 }
 
-function buildHookCommand({ host }: { host?: string }) {
+function buildHookCommand({ host, hook }: { host?: string; hook: string }) {
   // Prepend global host if supplied so each invocation inherits it
-  return host ? `arden --host ${host} claude hook ${HOOK}` : `arden claude hook ${HOOK}`;
+  return host ? `arden --host ${host} claude hook ${hook}` : `arden claude hook ${hook}`;
 }
 
 /** 
- * Reads settings.json (creating skeleton if missing) and ensures the hook array contains cmd.
+ * Reads settings.json (creating skeleton if missing) and ensures all hooks are installed.
  * Returns the modified JSON and whether any changes were made.
  */
-async function ensureHook(file: string, cmd: string): Promise<{ json: any; modified: boolean }> {
+async function ensureHooks(file: string, host?: string): Promise<{ json: any; modified: boolean }> {
   let json: any = {};
   
   try {
@@ -85,34 +80,41 @@ async function ensureHook(file: string, cmd: string): Promise<{ json: any; modif
     json = JSON.parse(content);
   } catch (error) {
     // File missing or invalid JSON - start with empty object
-    logger.debug(`Creating new settings file: ${file}`);
   }
 
   // Ensure hooks object exists
   json.hooks = json.hooks ?? {};
   
-  // Get current hook array and clean up any legacy entries
-  const currentHooks: any[] = json.hooks[HOOK] ?? [];
-  const cleanedHooks = filterOutLegacyArdenHooks(currentHooks);
+  let modified = false;
   
-  // Check if our exact command is already present in the correct format
-  const hookEntry = {
-    hooks: [
-      {
-        type: "command",
-        command: cmd
-      }
-    ]
-  };
-  
-  if (hasArdenHook(cleanedHooks, cmd)) {
-    json.hooks[HOOK] = cleanedHooks;
-    return { json, modified: false };
+  // Install each hook
+  for (const hook of HOOKS) {
+    const cmd = buildHookCommand({ host, hook });
+    
+    // Get current hook array and clean up any legacy entries
+    const currentHooks: any[] = json.hooks[hook] ?? [];
+    const cleanedHooks = filterOutLegacyArdenHooks(currentHooks);
+    
+    // Check if our exact command is already present in the correct format
+    const hookEntry = {
+      hooks: [
+        {
+          type: "command",
+          command: cmd
+        }
+      ]
+    };
+    
+    if (!hasArdenHook(cleanedHooks, cmd)) {
+      // Add our command to the cleaned array
+      json.hooks[hook] = [...cleanedHooks, hookEntry];
+      modified = true;
+    } else {
+      json.hooks[hook] = cleanedHooks;
+    }
   }
-
-  // Add our command to the cleaned array
-  json.hooks[HOOK] = [...cleanedHooks, hookEntry];
-  return { json, modified: true };
+  
+  return { json, modified };
 }
 
 /**
@@ -122,9 +124,9 @@ async function ensureHook(file: string, cmd: string): Promise<{ json: any; modif
 function filterOutLegacyArdenHooks(hooks: any[]): any[] {
   const ardenPatterns = [
     // Legacy patterns without 'hook' subcommand
-    /^arden.*claude\s+SubagentStop$/,
-    /^npx arden.*claude\s+SubagentStop$/,
-    /^bunx arden.*claude\s+SubagentStop$/,
+    /^arden.*claude\s+(Stop|SubagentStop)$/,
+    /^npx arden.*claude\s+(Stop|SubagentStop)$/,
+    /^bunx arden.*claude\s+(Stop|SubagentStop)$/,
   ];
   
   return hooks.filter(hook => {
