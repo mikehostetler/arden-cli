@@ -13,6 +13,9 @@
     "start": "node dist/index.js",
     "clean": "rm -rf dist",
     "prepublishOnly": "npm run clean && npm run build",
+    "test": "bun test",
+    "test:unit": "bun test test/unit",
+    "test:coverage": "bun test --coverage",
     "test:integration": "npm run build && bun test/integration.ts"
   },
   "tsup": {
