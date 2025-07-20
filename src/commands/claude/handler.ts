@@ -1,6 +1,7 @@
 import logger from '../../util/logger';
 import { sendTelemetry } from '../../util/client';
 import { ClaudeHook } from './hooks';
+import { AgentIds } from '../../production-agents';
 
 export interface ClaudeHookOptions {
   dryRun: boolean;
@@ -26,7 +27,7 @@ export async function handleClaudeHook(
 
     // Enrich the payload with Arden metadata
     const enriched = {
-      provider: 'claude_code',
+      provider: AgentIds.CLAUDE_CODE,
       hook,
       timestamp: new Date().toISOString(),
       payload,
