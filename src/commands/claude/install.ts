@@ -59,7 +59,7 @@ async function run(opts: InstallOpts, command: Command) {
   }
 }
 
-function expandTilde(path: string): string {
+export function expandTilde(path: string): string {
   return path.replace(/^~(?=$|\/|\\)/, homedir());
 }
 
@@ -170,6 +170,20 @@ async function confirm(question: string): Promise<boolean> {
       resolve(['y', 'yes'].includes(answer.trim().toLowerCase()));
     });
   });
+}
+
+/**
+ * Check if Claude hooks need to be installed (read-only check)
+ * Returns true if hooks are missing/need installation
+ */
+export async function checkClaudeHooks(settingsPath: string, host?: string): Promise<boolean> {
+  try {
+    const { modified } = await ensureHooks(settingsPath, host);
+    return modified; // true means hooks are missing and need installation
+  } catch (error) {
+    logger.error(`Failed to check Claude hooks: ${(error as Error).message}`);
+    return true; // Assume hooks need installation if we can't read the file
+  }
 }
 
 async function writeFileAtomic(path: string, data: string): Promise<void> {

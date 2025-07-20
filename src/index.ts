@@ -4,6 +4,7 @@ import { eventsCommand } from "./commands/events";
 import { agentsCommand } from "./commands/agents";
 import { usersCommand } from "./commands/users";
 import { configCommand } from "./commands/config";
+import { buildSetupCommand } from "./commands/setup";
 import logger from "./util/logger";
 import env from "./util/env";
 import { readFileSync } from "fs";
@@ -26,6 +27,7 @@ program
   .version(version)
   .option('-H, --host <url>', 'API host URL', env.HOST);
 
+program.addCommand(buildSetupCommand());
 program.addCommand(claudeCommand);
 program.addCommand(eventsCommand);
 program.addCommand(agentsCommand());

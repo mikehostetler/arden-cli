@@ -1,29 +1,45 @@
 # Arden CLI
 
-A powerful command-line tool for sending AI agent telemetry and logs to the Arden Stats API. Built with TypeScript and designed for seamless integration with AI coding assistants, with **Claude Code hooks** as the primary integration strategy.
+A command-line tool for tracking AI agent usage and sending telemetry to the Arden Stats API. Supports automatic integration with Claude Code and Amp agents.
 
-## 🚀 Features
+## Features
 
-- **🎯 Claude Code Integration**: Primary integration strategy with built-in hooks for automatic usage tracking
+- **Automatic Setup**: Single command configuration for your AI agent environment
+- **Claude Code Integration**: Built-in hooks for automatic usage tracking
+- **Amp Support**: Native integration with Amp agents
 - **Agent Telemetry**: Send structured telemetry events to the Arden Stats API
 - **Batch Processing**: Handle multiple events efficiently with automatic chunking
 - **Flexible Data Input**: Support for JSON, files, stdin, and key-value pairs
 - **Robust Error Handling**: Comprehensive validation and retry logic
-- **Development-Friendly**: Pretty logging and debug modes
 
-## 📦 Installation
+## Quick Start
+
+Install the CLI and run setup to configure your system automatically:
+
+```bash
+npm install -g @arden/cli
+arden setup
+```
+
+The setup command will:
+- Detect Claude Code and Amp agents on your system
+- Install Claude hooks if needed (with your permission)
+- Guide you through API token configuration
+- Verify everything is working correctly
+
+## Installation
 
 ### From npm
 
 ```bash
-npm i -g arden
+npm install -g @arden/cli
 ```
 
 ### From GitHub
 
 ```bash
 # Install directly from GitHub
-npm i -g https://github.com/mikehostetler/arden-cli
+npm install -g https://github.com/mikehostetler/arden-cli
 
 # Or clone and install locally
 git clone https://github.com/mikehostetler/arden-cli
@@ -33,7 +49,7 @@ npm run build
 npm link
 ```
 
-## 🎯 Usage
+## Usage
 
 ### Basic Commands
 
@@ -134,34 +150,34 @@ arden users leaderboard --period 30d --mode real
 arden users leaderboard --json
 ```
 
-## 🎯 Claude Code Integration (Primary Integration)
+## Claude Code Integration
 
-The **recommended and primary way** to integrate with Arden is through Claude Code hooks. This provides automatic usage tracking when Claude completes coding tasks in your projects.
+Claude Code integration provides automatic usage tracking when Claude completes coding tasks in your projects.
 
-### Why Claude Code Integration?
+### Automatic Setup
 
-- **Automatic Tracking**: No manual event submission required
-- **Session-Based Metrics**: Captures complete coding sessions with Claude
-- **Rich Context**: Includes session ID, transcript path, and completion data
-- **Zero Friction**: Works seamlessly with your existing Claude workflows
+The recommended way to set up Claude integration is using the setup command:
 
-### Setting up Claude Code Hooks
+```bash
+arden setup
+```
 
-1. **Install the Arden CLI** globally:
-   ```bash
-   npm i -g arden
-   ```
+This will automatically detect Claude Code and install the necessary hooks with your permission.
 
-2. **Configure Claude Code hooks** in your `~/.claude/settings.json`:
+### Manual Setup
+
+If you prefer to configure manually:
+
+1. Add the hook to your `~/.claude/settings.json`:
    ```json
    {
      "hooks": {
-       "Stop": "arden claude Stop"
+       "Stop": "arden claude hook Stop"
      }
    }
    ```
 
-3. **Usage events are automatically tracked** when Claude completes tasks and stops
+2. Usage events are automatically tracked when Claude completes tasks
 
 ### How It Works
 
@@ -170,19 +186,17 @@ When Claude Code finishes a session, it triggers the `Stop` hook which:
 - Automatically sends a usage event to Arden with agent ID `A-CLAUDECODE`  
 - Tracks your Claude coding sessions without any manual intervention
 
-The `arden claude Stop` command is designed **exclusively for use within Claude Code hooks** and accepts the standard Claude hook data format as documented in the [Claude Code hooks documentation](https://docs.anthropic.com/en/docs/claude-code/hooks).
-
 ### Testing Your Setup
 
 ```bash
-# Test the hook configuration (for debugging only)
-echo '{"session_id": "test123", "hook_event_name": "Stop"}' | arden claude Stop --dry-run
+# Test the hook configuration
+echo '{"session_id": "test123", "hook_event_name": "Stop"}' | arden claude hook Stop --dry-run
 
 # Check if events are being sent
 arden agents list | grep A-CLAUDECODE
 ```
 
-## 📊 Event Specification
+## Event Specification
 
 Events follow the Arden Telemetry Protocol v1 with these key fields:
 
@@ -204,22 +218,7 @@ Example event:
 }
 ```
 
-## 🔗 Quick Start with Claude Code
-
-1. **Install Arden CLI**: `npm i -g arden`
-2. **Add Stop hook** to your `~/.claude/settings.json`:
-   ```json
-   {
-     "hooks": {
-       "Stop": "arden claude Stop"
-     }
-   }
-   ```
-3. **Start coding** - usage is automatically tracked when Claude completes tasks!
-
-Each completed Claude session sends an event to Arden with agent ID `A-CLAUDECODE`, allowing you to track your Claude usage seamlessly.
-
-## 🔧 Configuration
+## Configuration
 
 The CLI uses environment variables for configuration:
 
@@ -235,7 +234,7 @@ export NODE_ENV="development"
 
 You can also create a `.env` file in your project root with these variables.
 
-## 📝 Examples
+## Examples
 
 ### Development Workflow
 
@@ -297,7 +296,7 @@ echo '{"action": "autocomplete", "language": "typescript"}' | \
 # No manual intervention needed - hooks automatically track usage
 ```
 
-## 🔧 Development
+## Development
 
 ### Building
 
@@ -328,10 +327,10 @@ bun run dev agents leaderboard --period today --mode simulated
 bun run dev users leaderboard --mode simulated
 
 # Test Claude hook command (for debugging)
-echo '{"session_id": "test123", "hook_event_name": "Stop"}' | bun run dev claude Stop --dry-run
+echo '{"session_id": "test123", "hook_event_name": "Stop"}' | bun run dev claude hook Stop --dry-run
 ```
 
-## 🌟 Advanced Features
+## Advanced Features
 
 ### Global Options
 
@@ -373,11 +372,11 @@ Automatic retry with exponential backoff for:
 
 Client errors (4xx) are not retried.
 
-## 📚 Protocol Specification
+## Protocol Specification
 
 This CLI implements the **Agent Telemetry Protocol v1**. For detailed specification, see [SPEC.md](SPEC.md).
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
@@ -385,11 +384,11 @@ This CLI implements the **Agent Telemetry Protocol v1**. For detailed specificat
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📄 License
+## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
 
-## 📞 Support
+## Support
 
 For issues and questions:
 - GitHub Issues: [Report a bug](https://github.com/mikehostetler/arden-cli/issues)
