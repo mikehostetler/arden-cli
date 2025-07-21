@@ -4,6 +4,7 @@ import { dirname } from 'path';
 import { homedir } from 'os';
 import { createInterface } from 'readline';
 import logger from '../../util/logger';
+import { output } from '../../util/output';
 
 interface InstallOpts {
   settings: string;
@@ -29,32 +30,32 @@ async function run(opts: InstallOpts, command: Command) {
   const parentOptions = command.parent?.parent?.opts() || {};
   const host = parentOptions['host'];
 
-  console.log(`Configuring Claude Code hooks for: ${settingsPath}`);
+  output.info(`Configuring Claude Code hooks for: ${settingsPath}`);
 
   try {
     const { json, modified } = await ensureHooks(settingsPath, host);
 
     if (!modified) {
-      console.log('✅ Arden hooks already present – nothing to do.');
+      output.success('Arden hooks already present – nothing to do.');
       return;
     }
 
     if (opts.dryRun) {
-      console.log('[DRY-RUN] New settings.json would be:');
-      console.log(JSON.stringify(json, null, 2));
+      output.info('[DRY-RUN] New settings.json would be:');
+      output.json(json);
       return;
     }
 
     if (!opts.yes && !(await confirm(`Write changes to ${settingsPath}? (y/N)`))) {
-      console.log('Aborted.');
+      output.info('Aborted.');
       return;
     }
 
     await writeFileAtomic(settingsPath, JSON.stringify(json, null, 2) + '\n');
-    console.log(`✅ Claude hooks installed in ${settingsPath}`);
-    console.log('Claude Code will now send Stop and SubagentStop events to Arden.');
+    output.success(`Claude hooks installed in ${settingsPath}`);
+    output.info('Claude Code will now send Stop and SubagentStop events to Arden.');
   } catch (error) {
-    console.error(`Failed to install Claude hooks: ${(error as Error).message}`);
+    output.error(`Failed to install Claude hooks: ${(error as Error).message}`);
     process.exit(1);
   }
 }

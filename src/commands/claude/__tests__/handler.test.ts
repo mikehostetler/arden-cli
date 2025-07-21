@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import type { ClaudeHookOptions } from "../handler";
-import { AgentIds } from "../../../production-agents";
+import { AgentIds } from "../../../agents";
 
 describe("claude handler", () => {
   it("should export handleClaudeHook function", async () => {
@@ -13,9 +13,9 @@ describe("claude handler", () => {
     const options: ClaudeHookOptions = {
       dryRun: false,
       print: true,
-      host: "localhost:3000"
+      host: "localhost:3000",
     };
-    
+
     expect(options.dryRun).toBe(false);
     expect(options.print).toBe(true);
     expect(options.host).toBe("localhost:3000");
@@ -32,11 +32,11 @@ describe("claude handler", () => {
     const fullOptions: ClaudeHookOptions = {
       dryRun: true,
       print: false,
-      host: "example.com:8080"
+      host: "example.com:8080",
     };
-    
+
     expect(fullOptions).toHaveProperty("dryRun");
-    expect(fullOptions).toHaveProperty("print"); 
+    expect(fullOptions).toHaveProperty("print");
     expect(fullOptions).toHaveProperty("host");
   });
 
@@ -44,9 +44,9 @@ describe("claude handler", () => {
     // Test that host is optional
     const optionsWithoutHost: ClaudeHookOptions = {
       dryRun: false,
-      print: true
+      print: true,
     };
-    
+
     expect(optionsWithoutHost.host).toBeUndefined();
   });
 });

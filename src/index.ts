@@ -4,8 +4,8 @@ import { eventsCommand } from "./commands/events";
 import { agentsCommand } from "./commands/agents";
 import { usersCommand } from "./commands/users";
 import { configCommand } from "./commands/config";
-import { buildSetupCommand } from "./commands/setup";
-import { buildAuthCommand } from "./commands/auth";
+import { setupCommand } from "./commands/setup";
+import { authCommand } from "./commands/auth";
 import logger from "./util/logger";
 import env from "./util/env";
 import { readFileSync } from "fs";
@@ -28,12 +28,12 @@ program
   .version(version)
   .option('-H, --host <url>', 'API host URL', env.HOST);
 
-program.addCommand(buildSetupCommand());
-program.addCommand(buildAuthCommand());
+program.addCommand(setupCommand);
+program.addCommand(authCommand);
 program.addCommand(claudeCommand);
 program.addCommand(eventsCommand);
-program.addCommand(agentsCommand());
-program.addCommand(usersCommand());
+program.addCommand(agentsCommand);
+program.addCommand(usersCommand);
 program.addCommand(configCommand);
 
 // CLI parsing with error handling

@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import logger from "../../util/logger";
 import { createClient } from "../../util/client";
+import { output } from "../../util/output";
 
 interface Agent {
   id: number;
@@ -48,24 +49,24 @@ export function list(): Command {
         const data = await response.json() as AgentsResponse;
 
         if (options.json) {
-          console.log(JSON.stringify(data, null, 2));
+          output.json(data);
         } else {
-          console.log(`Found ${data.total_count} agents (showing ${data.agents.length}):\n`);
+          output.message(`Found ${data.total_count} agents (showing ${data.agents.length}):\n`);
           
           data.agents.forEach((agent, index) => {
-            console.log(`${index + 1 + data.offset}. ${agent.name}`);
-            console.log(`   ID: ${agent.agent_id}`);
-            console.log(`   Slug: ${agent.slug}`);
-            console.log(`   Active: ${agent.is_active ? "Yes" : "No"}`);
+            output.message(`${index + 1 + data.offset}. ${agent.name}`);
+            output.message(`   ID: ${agent.agent_id}`);
+            output.message(`   Slug: ${agent.slug}`);
+            output.message(`   Active: ${agent.is_active ? "Yes" : "No"}`);
             if (agent.website_url) {
-              console.log(`   Website: ${agent.website_url}`);
+              output.message(`   Website: ${agent.website_url}`);
             }
-            console.log(`   Created: ${new Date(agent.created_at).toLocaleDateString()}`);
-            console.log("");
+            output.message(`   Created: ${new Date(agent.created_at).toLocaleDateString()}`);
+            output.message("");
           });
 
           if (data.total_count > data.offset + data.limit) {
-            console.log(`Use --offset ${data.offset + data.limit} to see more results.`);
+            output.info(`Use --offset ${data.offset + data.limit} to see more results.`);
           }
         }
 

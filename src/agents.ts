@@ -3,7 +3,7 @@
  * This is a simplified list containing only agent ID and name for CLI usage.
  */
 
-export interface ProductionAgent {
+export interface Agent {
   agent_id: string;
   name: string;
 }
@@ -11,7 +11,7 @@ export interface ProductionAgent {
 // Agent IDs as enum for type-safe usage across the codebase
 export const AgentIds = {
   AMP: "A-AMP",
-  CURSOR: "A-CURSOR", 
+  CURSOR: "A-CURSOR",
   CLAUDE_CODE: "A-CLAUDECODE",
   COPILOT: "A-COPILOT",
   WINDSURF: "A-WINDSURF",
@@ -34,9 +34,9 @@ export const AgentIds = {
   OPENCODE: "A-OPENCODE",
 } as const;
 
-export type AgentId = typeof AgentIds[keyof typeof AgentIds];
+export type AgentId = (typeof AgentIds)[keyof typeof AgentIds];
 
-export const PRODUCTION_AGENTS: ProductionAgent[] = [
+export const AGENTS: Agent[] = [
   { agent_id: AgentIds.AMP, name: "Amp" },
   { agent_id: AgentIds.CURSOR, name: "Cursor" },
   { agent_id: AgentIds.CLAUDE_CODE, name: "Claude Code" },
@@ -64,36 +64,36 @@ export const PRODUCTION_AGENTS: ProductionAgent[] = [
 /**
  * Get agent by ID
  */
-export function getAgentById(agentId: string): ProductionAgent | undefined {
-  return PRODUCTION_AGENTS.find(agent => agent.agent_id === agentId);
+export function getAgentById(agentId: string): Agent | undefined {
+  return AGENTS.find((agent) => agent.agent_id === agentId);
 }
 
 /**
  * Get agent by name
  */
-export function getAgentByName(name: string): ProductionAgent | undefined {
-  return PRODUCTION_AGENTS.find(agent => agent.name === name);
+export function getAgentByName(name: string): Agent | undefined {
+  return AGENTS.find((agent) => agent.name === name);
 }
 
 /**
  * Get all agent IDs
  */
 export function getAllAgentIds(): string[] {
-  return PRODUCTION_AGENTS.map(agent => agent.agent_id);
+  return AGENTS.map((agent) => agent.agent_id);
 }
 
 /**
  * Get all agent names
  */
 export function getAllAgentNames(): string[] {
-  return PRODUCTION_AGENTS.map(agent => agent.name);
+  return AGENTS.map((agent) => agent.name);
 }
 
 /**
  * Check if an agent ID is valid (exists in production agents list)
  */
 export function isValidAgentId(agentId: string): boolean {
-  return PRODUCTION_AGENTS.some(agent => agent.agent_id === agentId);
+  return AGENTS.some((agent) => agent.agent_id === agentId);
 }
 
 /**

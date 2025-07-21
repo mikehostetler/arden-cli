@@ -1,28 +1,22 @@
 import { Command } from "commander";
 import { clearUserToken, getUserToken } from "../../util/auth";
-import logger from "../../util/logger";
+import { output } from "../../util/output";
 
-export function buildLogoutCommand(): Command {
-  return new Command("logout")
-    .description("Sign out of your Arden account")
-    .action(runLogout);
-}
+interface LogoutOptions {}
 
-async function runLogout() {
-  try {
-    const token = await getUserToken();
-    
-    if (!token) {
-      console.log("Not currently logged in");
-      return;
-    }
+export const logoutCommand = new Command("logout")
+  .description("Sign out of your Arden account")
+  .action(runLogout);
 
-    await clearUserToken();
-    console.log("Successfully logged out");
-    console.log("Your local authentication token has been removed");
-
-  } catch (error) {
-    logger.error(`Logout failed: ${(error as Error).message}`);
-    process.exit(1);
+async function runLogout(_options: LogoutOptions, _command: Command) {
+  const token = await getUserToken();
+  
+  if (!token) {
+    output.info("Not currently logged in");
+    return;
   }
+
+  await clearUserToken();
+  output.success("Successfully logged out");
+  output.info("Your local authentication token has been removed");
 }

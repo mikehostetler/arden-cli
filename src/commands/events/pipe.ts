@@ -4,6 +4,7 @@ import { sendEvents } from "../../util/client";
 import logger from "../../util/logger";
 import env from "../../util/env";
 import { readFileSync } from "fs";
+import { output } from "../../util/output";
 
 interface PipeOptions {
   token?: string;
@@ -38,7 +39,7 @@ export const pipeCommand = new Command("pipe")
 
       // Print if requested
       if (options.print || process.env["LOG_LEVEL"] === "debug") {
-        console.log(JSON.stringify(validatedEvents, null, 2));
+        output.json(validatedEvents);
       }
 
       // Exit if dry run

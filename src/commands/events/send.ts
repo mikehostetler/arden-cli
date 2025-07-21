@@ -5,6 +5,7 @@ import logger from '../../util/logger';
 import env from '../../util/env';
 import { getUserId, getApiToken } from '../../util/settings';
 import { readFileSync } from 'fs';
+import { output } from '../../util/output';
 
 interface SendOptions {
   agent?: string;
@@ -99,7 +100,7 @@ export const sendCommand = new Command('send')
 
       // Print if requested
       if (options.print || process.env.LOG_LEVEL === 'debug') {
-        console.log(JSON.stringify(validatedEvent, null, 2));
+        output.json(validatedEvent);
       }
 
       // Exit if dry run
@@ -120,7 +121,7 @@ export const sendCommand = new Command('send')
         logger.debug(`Response: ${JSON.stringify(response)}`);
         
         if (response.status === 'accepted') {
-          console.log(`✓ Event sent successfully`);
+          output.success(`Event sent successfully`);
         } else if (response.status === 'partial') {
         logger.warn(`Event partially processed. Accepted: ${response.accepted_count}, Rejected: ${response.rejected_count}`);
         if (response.rejected) {

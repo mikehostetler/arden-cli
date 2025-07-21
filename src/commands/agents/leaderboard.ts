@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import logger from "../../util/logger";
 import { createClient } from "../../util/client";
+import { output } from "../../util/output";
 
 interface LeaderboardEntry {
   rank: number;
@@ -61,25 +62,25 @@ export function leaderboard(): Command {
         const data = await response.json() as LeaderboardResponse;
 
         if (options.json) {
-          console.log(JSON.stringify(data, null, 2));
+          output.json(data);
         } else {
           const periodDisplay = options.period === "7d" ? "7 days" : 
                                options.period === "30d" ? "30 days" : 
                                "today";
           
-          console.log(`🏆 Top Agents — ${periodDisplay} (${data.mode})\n`);
+          output.message(`🏆 Top Agents — ${periodDisplay} (${data.mode})\n`);
           
           if (data.data.length === 0) {
-            console.log("No data available for the selected period.");
+            output.info("No data available for the selected period.");
           } else {
             data.data.forEach((entry) => {
               const changeSymbol = entry.change >= 0 ? "+" : "";
               const changeColor = entry.change >= 0 ? "✅" : "❌";
               
-              console.log(`${entry.rank}. ${entry.name}`);
-              console.log(`   ${entry.runs} runs (${changeSymbol}${entry.change}) ${changeColor}`);
-              console.log(`   Agent ID: ${entry.agent_id}`);
-              console.log("");
+              output.message(`${entry.rank}. ${entry.name}`);
+              output.message(`   ${entry.runs} runs (${changeSymbol}${entry.change}) ${changeColor}`);
+              output.message(`   Agent ID: ${entry.agent_id}`);
+              output.message("");
             });
           }
         }

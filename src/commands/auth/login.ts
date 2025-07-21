@@ -5,6 +5,7 @@ import {
   promptForPassword,
   saveUserToken
 } from "../../util/auth";
+import { output } from "../../util/output";
 import logger from "../../util/logger";
 
 interface LoginOptions {
@@ -13,43 +14,43 @@ interface LoginOptions {
   host?: string;
 }
 
-export function buildLoginCommand(): Command {
-  return new Command("login")
-    .description("Sign in to your Arden account")
-    .option("--email <email>", "Email address")
-    .option("--password <password>", "Password")
-    .option("--host <url>", "Override Arden API host")
-    .action(runLogin);
-}
+export const loginCommand = new Command("login")
+  .description("Sign in to your Arden account")
+  .option("--email <email>", "Email address")
+  .option("--password <password>", "Password")
+  .action(runLogin);
 
-async function runLogin(options: LoginOptions) {
+async function runLogin(options: LoginOptions, command: Command) {
   try {
-    console.log("Signing in to Arden...\n");
+    output.info("Signing in to Arden...\n");
+
+    // Get host from global options
+    const host = command.parent?.getOptionValue('host') || options.host;
 
     // Collect login credentials
     const email = options.email || await promptForEmail();
     const password = options.password || await promptForPassword();
 
     if (!email || !password) {
-      console.log("Email and password are required");
+      output.error("Email and password are required");
       process.exit(1);
     }
 
     // Authenticate user
-    const client = new ArdenAuthClient(options.host);
-    console.log("Authenticating...");
+    const client = new ArdenAuthClient(host);
+    output.info("Authenticating...");
     
     const authResponse = await client.login({ email, password });
     
     // Save token
     await saveUserToken(authResponse.token);
     
-    console.log("Successfully logged in!");
-    console.log("Authentication token saved locally.");
+    output.success("Successfully logged in!");
+    output.info("Authentication token saved locally.");
 
-    console.log("\nNext steps:");
-    console.log("• Run 'arden setup' to configure your AI agents");
-    console.log("• Visit https://ardenstats.com to view your dashboard");
+    output.message("\nNext steps:");
+    output.message("• Run 'arden setup' to configure your AI agents");
+    output.message("• Visit https://ardenstats.com to view your dashboard");
 
   } catch (error) {
     logger.error(`Login failed: ${(error as Error).message}`);

@@ -1,16 +1,12 @@
 import { Command } from "commander";
-import { buildRegisterCommand } from "./register";
-import { buildLoginCommand } from "./login";
-import { buildLogoutCommand } from "./logout";
-import { buildStatusCommand } from "./status";
+import { registerCommand } from "./register";
+import { loginCommand } from "./login";
+import { logoutCommand } from "./logout";
+import { statusCommand } from "./status";
 
-export function buildAuthCommand(): Command {
-  const command = new Command("auth")
-    .description("Manage Arden authentication")
-    .addCommand(buildRegisterCommand())
-    .addCommand(buildLoginCommand())
-    .addCommand(buildLogoutCommand())
-    .addCommand(buildStatusCommand());
-
-  return command;
-}
+export const authCommand = new Command("auth")
+  .description("Manage Arden authentication")
+  .addCommand(registerCommand)
+  .addCommand(loginCommand)
+  .addCommand(logoutCommand)
+  .addCommand(statusCommand);

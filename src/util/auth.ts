@@ -1,5 +1,5 @@
 import { createInterface } from "readline";
-import { loadConfig, saveConfig } from "./config";
+import { loadConfig, saveConfig } from "./settings";
 import logger from "./logger";
 import env from "./env";
 

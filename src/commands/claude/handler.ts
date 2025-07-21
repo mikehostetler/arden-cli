@@ -1,7 +1,8 @@
-import logger from '../../util/logger';
-import { sendTelemetry } from '../../util/client';
-import { ClaudeHook } from './hooks';
-import { AgentIds } from '../../production-agents';
+import logger from "../../util/logger";
+import { sendTelemetry } from "../../util/client";
+import { ClaudeHook } from "./hooks";
+import { AgentIds } from "../../agents";
+import { output } from "../../util/output";
 
 export interface ClaudeHookOptions {
   dryRun: boolean;
@@ -17,7 +18,7 @@ export async function handleClaudeHook(
     // Read JSON payload from stdin
     const stdinData = await readStdin();
     let payload: unknown;
-    
+
     try {
       payload = JSON.parse(stdinData);
     } catch (e) {
@@ -35,7 +36,7 @@ export async function handleClaudeHook(
 
     // Print enriched payload if requested
     if (opts.print) {
-      console.log(JSON.stringify(enriched, null, 2));
+      output.json(enriched);
     }
 
     // Skip API call in dry-run mode
@@ -47,28 +48,29 @@ export async function handleClaudeHook(
     // Send telemetry to Arden Stats API
     await sendTelemetry(`claude.${hook}`, enriched, opts.host);
     logger.debug(`Successfully sent telemetry for hook: ${hook}`);
-
   } catch (error) {
-    logger.error(`Failed to handle Claude hook ${hook}: ${(error as Error).message}`);
+    logger.error(
+      `Failed to handle Claude hook ${hook}: ${(error as Error).message}`
+    );
     process.exit(1);
   }
 }
 
 function readStdin(): Promise<string> {
   return new Promise((resolve, reject) => {
-    let data = '';
-    
-    process.stdin.setEncoding('utf8');
-    
-    process.stdin.on('data', (chunk) => {
+    let data = "";
+
+    process.stdin.setEncoding("utf8");
+
+    process.stdin.on("data", (chunk) => {
       data += chunk;
     });
-    
-    process.stdin.on('end', () => {
+
+    process.stdin.on("end", () => {
       resolve(data);
     });
-    
-    process.stdin.on('error', (error) => {
+
+    process.stdin.on("error", (error) => {
       reject(error);
     });
   });

@@ -3,6 +3,7 @@ import { validateEvents } from '../../util/schema';
 import logger from '../../util/logger';
 import { readFileSync } from 'fs';
 import { gunzipSync } from 'zlib';
+import { output } from '../../util/output';
 
 interface ValidateOptions {
   file?: string;
@@ -55,7 +56,7 @@ export const validateCommand = new Command('validate')
       
       // Print if requested
       if (options.print) {
-        console.log(JSON.stringify(validatedEvents, null, 2));
+        output.json(validatedEvents);
       }
 
       logger.info(`✓ All ${validatedEvents.length} events are valid`);
