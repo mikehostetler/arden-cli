@@ -7,6 +7,8 @@ import logger from "./logger";
 export interface ArdenConfig {
   apiToken?: string;
   host?: string;
+  userToken?: string;
+  userId?: number;
 }
 
 const CONFIG_FILE = join(homedir(), ".ardencfg.json");

@@ -2,12 +2,16 @@ import { Command } from 'commander';
 import { isClaudeHook } from './hooks';
 import { handleClaudeHook } from './handler';
 import { buildInstallCommand } from './install';
+import { buildImportCommand } from './import';
 
 export const claudeCommand = new Command('claude')
   .description('Claude Code integration');
 
 // Add install subcommand
 claudeCommand.addCommand(buildInstallCommand());
+
+// Add import subcommand
+claudeCommand.addCommand(buildImportCommand());
 
 // Add hook subcommand for handling Claude Code hooks
 const hookCommand = new Command('hook')

@@ -4,6 +4,17 @@ import { createInterface } from "readline";
 import { detectClaude, detectAmp } from "../util/detect";
 import { checkClaudeHooks, expandTilde } from "./claude/install";
 import { ensureApiToken } from "../util/config";
+import { findAmpThreads, createAmpHistoryEvents, formatThreadSummary } from "../util/amp-history";
+import { sendEvents } from "../util/client";
+import { 
+  isAuthenticated, 
+  ArdenAuthClient, 
+  promptForEmail, 
+  promptForPassword, 
+  promptForName, 
+  confirmPassword,
+  saveUserToken 
+} from "../util/auth";
 import logger from "../util/logger";
 
 interface SetupOptions {
@@ -44,12 +55,16 @@ async function runSetup(options: SetupOptions) {
       console.log("Claude Code not found. Skip if you don't use Claude Code.");
     }
     
-    // Amp detection (no action needed)
+    // Amp detection and history upload
     if (amp.present) {
       console.log("Amp detected - built-in Arden support, no configuration needed");
+      await handleAmpHistoryUpload(options);
     }
     
-    // API token setup
+    // User authentication setup
+    await handleUserAuthentication(options);
+    
+    // API token setup (legacy support)
     console.log("\nChecking API token...");
     await ensureApiToken(options);
     
@@ -176,6 +191,145 @@ async function spawnProcess(command: string, args: string[]): Promise<{ code: nu
       resolve({ code: 1 });
     });
   });
+}
+
+async function handleUserAuthentication(options: SetupOptions) {
+  console.log("\nChecking Arden account...");
+  
+  // Check if already authenticated
+  if (await isAuthenticated()) {
+    console.log("Already logged in to Arden");
+    return;
+  }
+
+  if (options.dryRun) {
+    console.log("[DRY-RUN] Would prompt for account setup");
+    return;
+  }
+
+  if (options.nonInteractive) {
+    console.log("Authentication required but running in non-interactive mode");
+    console.log("Run 'arden auth login' or 'arden auth register' to authenticate");
+    return;
+  }
+
+  // Ask if they have an account
+  const hasAccount = options.yes ? false : await confirm("Do you already have an Arden account? (y/N)");
+
+  if (hasAccount) {
+    await handleLogin(options);
+  } else {
+    await handleRegistration(options);
+  }
+}
+
+async function handleLogin(options: SetupOptions) {
+  console.log("\nSigning in to your Arden account...");
+  
+  try {
+    const email = await promptForEmail();
+    const password = await promptForPassword();
+
+    const client = new ArdenAuthClient(options.host);
+    const authResponse = await client.login({ email, password });
+    
+    await saveUserToken(authResponse.token);
+    
+    console.log("Successfully logged in!");
+  } catch (error) {
+    logger.error(`Login failed: ${(error as Error).message}`);
+    console.log("Setup will continue, but you may need to run 'arden auth login' later");
+  }
+}
+
+async function handleRegistration(options: SetupOptions) {
+  console.log("\nCreating new Arden account...");
+  
+  try {
+    const name = await promptForName();
+    const email = await promptForEmail();
+    
+    let password = await promptForPassword();
+    if (password.length < 6) {
+      console.log("Password must be at least 6 characters long");
+      password = await promptForPassword();
+    }
+
+    const isConfirmed = await confirmPassword(password);
+    if (!isConfirmed) {
+      console.log("Passwords do not match, setup will continue without account creation");
+      console.log("You can run 'arden auth register' later to create an account");
+      return;
+    }
+
+    const client = new ArdenAuthClient(options.host);
+    const user = await client.register({ name, email, password });
+    
+    console.log(`Account created successfully for ${user.name} (${user.email})`);
+    
+    if (!user.is_confirmed) {
+      console.log("A confirmation email has been sent to your email address");
+    }
+
+    // Auto-login after registration
+    const authResponse = await client.login({ email, password });
+    await saveUserToken(authResponse.token, user.id);
+    console.log("Successfully logged in");
+    
+  } catch (error) {
+    logger.error(`Registration failed: ${(error as Error).message}`);
+    console.log("Setup will continue, but you may need to run 'arden auth register' later");
+  }
+}
+
+async function handleAmpHistoryUpload(options: SetupOptions) {
+  console.log("\nChecking for existing Amp thread history...");
+  
+  const threads = await findAmpThreads();
+  
+  if (threads.length === 0) {
+    console.log("No existing Amp threads found in ~/.amp/file-changes");
+    return;
+  }
+  
+  console.log(formatThreadSummary(threads));
+  
+  if (options.dryRun) {
+    console.log("[DRY-RUN] Would upload thread history to A-AMP agent");
+    return;
+  }
+  
+  if (options.nonInteractive) {
+    console.log("Amp thread history found but running in non-interactive mode");
+    return;
+  }
+  
+  const shouldUpload = options.yes || await confirm(
+    `Upload ${threads.length} existing Amp thread(s) to ardenstats.com under agent A-AMP? (y/N)`
+  );
+  
+  if (!shouldUpload) {
+    console.log("Skipping Amp history upload");
+    return;
+  }
+  
+  console.log("Uploading Amp thread history...");
+  
+  try {
+    const events = createAmpHistoryEvents(threads);
+    const result = await sendEvents(events, { host: options.host });
+    
+    if (result.status === 'accepted') {
+      console.log(`Successfully uploaded ${result.accepted_count} thread record(s)`);
+    } else if (result.status === 'partial') {
+      console.log(`Uploaded ${result.accepted_count} thread record(s), ${result.rejected_count || 0} failed`);
+    } else {
+      console.log("Failed to upload thread history");
+    }
+  } catch (error) {
+    logger.error(`Failed to upload Amp history: ${(error as Error).message}`);
+    console.log("Warning: Could not upload Amp thread history");
+  }
 }
 
 function showSuccessMessage() {
