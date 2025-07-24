@@ -4,14 +4,23 @@ import { join } from 'path';
 import { createCommand, createCommandAction } from '../util/command-base';
 import { output } from '../util/output';
 import { loadSettings } from '../util/settings';
-import { ConfigOptionsSchema } from './config/schemas';
+import { skipCurrentVersion } from '../util/update-checker';
+import { ConfigOptions, ConfigOptionsSchema } from './config/schemas';
 
 export const configCommand = createCommand(
   'config',
   'Display current Arden CLI configuration'
-).action(createCommandAction(runConfig, ConfigOptionsSchema));
+)
+  .option('--skip-version', 'Skip the current version in future update checks')
+  .action(createCommandAction(runConfig, ConfigOptionsSchema));
 
-async function runConfig() {
+async function runConfig(options: ConfigOptions) {
+  // Handle skip-version option
+  if (options.skipVersion) {
+    skipCurrentVersion();
+    return;
+  }
+
   const settings = loadSettings();
   const configPath = join(homedir(), '.arden', 'settings.json');
 

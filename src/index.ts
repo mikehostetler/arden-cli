@@ -9,6 +9,7 @@ import { eventCommand } from './commands/events';
 import { initCommand } from './commands/setup';
 import logger from './util/logger';
 import { getHost } from './util/settings';
+import { checkAndDisplayUpdate } from './util/update-checker';
 
 let version = 'unknown';
 try {
@@ -33,6 +34,11 @@ program.addCommand(ampCommand);
 program.addCommand(claudeCommand);
 program.addCommand(eventCommand);
 program.addCommand(configCommand);
+
+// Run update check in background (don't await to avoid blocking CLI)
+checkAndDisplayUpdate().catch(() => {
+  // Silently ignore update check failures
+});
 
 // CLI parsing with error handling
 program.parseAsync(process.argv).catch(error => {

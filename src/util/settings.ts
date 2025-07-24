@@ -48,6 +48,13 @@ export const ArdenSettingsSchema = z.object({
   // Sync state tracking
   claude_sync: ClaudeSyncStateSchema.optional(),
   amp_sync: AmpSyncStateSchema.optional(),
+  
+  // Update check cache
+  updateCheckCache: z.object({
+    lastChecked: z.number(),
+    latestVersion: z.string(),
+    skipVersion: z.string().optional(),
+  }).optional(),
 });
 
 export type ArdenSettings = z.infer<typeof ArdenSettingsSchema>;

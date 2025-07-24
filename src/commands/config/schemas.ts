@@ -13,7 +13,9 @@ const GlobalOptionsSchema = z.object({
   yes: z.boolean().optional(),
 });
 
-// Config command schema - simplified to only accept global options
-export const ConfigOptionsSchema = GlobalOptionsSchema;
+// Config command schema - extends global options with config-specific options
+export const ConfigOptionsSchema = GlobalOptionsSchema.extend({
+  skipVersion: z.boolean().optional(),
+});
 
 export type ConfigOptions = z.infer<typeof ConfigOptionsSchema> & GlobalOptions;
