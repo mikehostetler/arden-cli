@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 
-import logger from '../../util/logger';
+import { logger } from '../../util/logging';
 import { handleClaudeHook } from './handler';
 import { isClaudeHook } from './hooks';
 import { buildInitCommand } from './init';

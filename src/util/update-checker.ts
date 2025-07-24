@@ -1,8 +1,7 @@
 import ky from 'ky';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import logger from './logger';
-import { output } from './output';
+import { logger, output } from './logging';
 import { loadSettings, saveSettings } from './settings';
 
 interface NpmPackageInfo {

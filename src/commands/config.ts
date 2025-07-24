@@ -2,7 +2,7 @@ import { homedir } from 'os';
 import { join } from 'path';
 
 import { createCommand, createCommandAction } from '../util/command-base';
-import { output } from '../util/output';
+import { output } from '../util/logging';
 import { loadSettings } from '../util/settings';
 import { skipCurrentVersion } from '../util/update-checker';
 import { ConfigOptions, ConfigOptionsSchema } from './config/schemas';

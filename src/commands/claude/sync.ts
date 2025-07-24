@@ -1,3 +1,4 @@
+import * as cliProgress from 'cli-progress';
 import { Command } from 'commander';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -6,7 +7,7 @@ import * as path from 'path';
 import { AGENTS } from '../../agents';
 import { calculateFileChecksum } from '../../util/checksum';
 import { sendTelemetry } from '../../util/client';
-import logger from '../../util/logger';
+import { logger, output } from '../../util/logging';
 import { getUserId, isFileSynced, recordFileSynced } from '../../util/settings';
 import { getCurrentDateISO } from '../../util/time';
 import { checkUserOrPrompt } from '../../util/user-prompt';
@@ -78,36 +79,59 @@ async function syncClaudeUsage(options: ClaudeOptions): Promise<void> {
     return;
   }
 
-  logger.info(`Found ${jsonlFiles.length} Claude Code session files`);
+  output.info(`Found ${jsonlFiles.length} Claude Code session files`);
 
   const limit = parseInt(options.limit, 10);
-  let totalEvents = 0;
+  
+  // Filter files that need syncing
+  const filesToSync = [];
   let skippedFiles = 0;
 
   for (const jsonlFile of jsonlFiles) {
-    try {
-      // Check if file needs syncing (unless force flag is used)
-      if (!options.force) {
-        const checksum = calculateFileChecksum(jsonlFile);
-        if (isFileSynced(jsonlFile, checksum)) {
-          logger.debug(`Skipping already synced file: ${path.basename(jsonlFile)}`);
-          skippedFiles++;
-          continue;
-        }
+    if (!options.force) {
+      const checksum = calculateFileChecksum(jsonlFile);
+      if (isFileSynced(jsonlFile, checksum)) {
+        logger.debug(`Skipping already synced file: ${path.basename(jsonlFile)}`);
+        skippedFiles++;
+        continue;
       }
+    }
+    filesToSync.push(jsonlFile);
+  }
 
-      const events = await processJsonlFile(jsonlFile, limit, options.force);
+  if (filesToSync.length === 0) {
+    output.info('All files are already synced (use --force to re-sync)');
+    return;
+  }
+
+  // Create progress bar for sync operations
+  const progressBar = new cliProgress.SingleBar({
+    format: 'Syncing sessions |{bar}| {percentage}% | {value}/{total} sessions',
+    barCompleteChar: '\u2588',
+    barIncompleteChar: '\u2591',
+    hideCursor: true,
+  });
+  
+  progressBar.start(filesToSync.length, 0);
+
+  let totalEvents = 0;
+  for (const jsonlFile of filesToSync) {
+    try {
+      const events = await processJsonlFile(jsonlFile, limit, options.force, true);
       totalEvents += events;
-      logger.info(`Processed ${events} events from ${path.basename(jsonlFile)}`);
+      progressBar.increment();
     } catch (error) {
       logger.error(`Failed to process ${jsonlFile}: ${(error as Error).message}`);
+      progressBar.increment();
     }
   }
 
+  progressBar.stop();
+
   if (skippedFiles > 0) {
-    logger.info(`Skipped ${skippedFiles} already synced files (use --force to re-sync)`);
+    output.info(`Skipped ${skippedFiles} already synced files (use --force to re-sync)`);
   }
-  logger.info(`Successfully synced ${totalEvents} Claude Code events`);
+  output.success(`Successfully synced ${totalEvents} Claude Code events`);
 }
 
 export function findJsonlFiles(projectsDir: string): string[] {
@@ -142,7 +166,7 @@ export function extractProjectPath(jsonlFile: string): string {
   return dirName;
 }
 
-async function processJsonlFile(filePath: string, limit: number, force?: boolean): Promise<number> {
+async function processJsonlFile(filePath: string, limit: number, force?: boolean, showProgress = false): Promise<number> {
   const content = fs.readFileSync(filePath, 'utf-8');
   const lines = content.trim().split('\n').slice(0, limit);
 
@@ -159,7 +183,7 @@ async function processJsonlFile(filePath: string, limit: number, force?: boolean
       // Only process assistant messages with usage data or significant user interactions
       if (shouldProcessEvent(event)) {
         const ardenEvent = transformToArdenEvent(event, projectPath, sessionId);
-        await sendTelemetry('claude.usage', ardenEvent);
+        await sendTelemetry('claude.usage', ardenEvent, undefined, false, showProgress);
         eventCount++;
       }
     } catch (error) {

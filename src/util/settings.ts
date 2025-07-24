@@ -2,6 +2,14 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
 import { z } from 'zod';
+import { 
+  getEnvApiToken, 
+  getEnvUserId, 
+  getEnvHost, 
+  getEnvLogLevel, 
+  getEnvDefaultFormat, 
+  getEnvInteractive 
+} from './env.js';
 
 // Zod schema for Claude sync state
 const ClaudeSyncStateSchema = z.object({
@@ -106,41 +114,37 @@ export function loadSettings(): ArdenSettings {
     );
   }
 
-  // Merge with environment variables (only ARDEN_* prefixed ones)
+  // Merge with environment variables using centralized env handling
   const envSettings: Partial<ArdenSettings> = {};
 
-  if (process.env.ARDEN_API_TOKEN) {
-    envSettings.api_token = process.env.ARDEN_API_TOKEN;
-  }
-  if (process.env.ARDEN_USER_ID) {
-    envSettings.user_id = process.env.ARDEN_USER_ID;
-  }
-  if (process.env.ARDEN_HOST) {
-    envSettings.host = process.env.ARDEN_HOST;
-  }
-  if (process.env.ARDEN_LOG_LEVEL) {
-    envSettings.log_level = process.env.ARDEN_LOG_LEVEL as ArdenSettings['log_level'];
-  }
-  if (process.env.ARDEN_DEFAULT_FORMAT) {
-    envSettings.default_format = process.env
-      .ARDEN_DEFAULT_FORMAT as ArdenSettings['default_format'];
-  }
-  if (process.env.ARDEN_INTERACTIVE) {
-    envSettings.interactive = process.env.ARDEN_INTERACTIVE === 'true';
+  const envApiToken = getEnvApiToken();
+  if (envApiToken) {
+    envSettings.api_token = envApiToken;
   }
 
-  // Support legacy environment variables with deprecation warnings
-  if (process.env.HOST && !process.env.ARDEN_HOST) {
-    console.warn(
-      'DEPRECATION WARNING: HOST environment variable is deprecated. Use ARDEN_HOST instead.'
-    );
-    envSettings.host = process.env.HOST;
+  const envUserId = getEnvUserId();
+  if (envUserId) {
+    envSettings.user_id = envUserId;
   }
-  if (process.env.LOG_LEVEL && !process.env.ARDEN_LOG_LEVEL) {
-    console.warn(
-      'DEPRECATION WARNING: LOG_LEVEL environment variable is deprecated. Use ARDEN_LOG_LEVEL instead.'
-    );
-    envSettings.log_level = process.env.LOG_LEVEL as ArdenSettings['log_level'];
+
+  const envHost = getEnvHost();
+  if (envHost) {
+    envSettings.host = envHost;
+  }
+
+  const envLogLevel = getEnvLogLevel();
+  if (envLogLevel) {
+    envSettings.log_level = envLogLevel as ArdenSettings['log_level'];
+  }
+
+  const envDefaultFormat = getEnvDefaultFormat();
+  if (envDefaultFormat) {
+    envSettings.default_format = envDefaultFormat as ArdenSettings['default_format'];
+  }
+
+  const envInteractive = getEnvInteractive();
+  if (envInteractive !== undefined) {
+    envSettings.interactive = envInteractive;
   }
 
   // Validate final merged settings

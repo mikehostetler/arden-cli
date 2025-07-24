@@ -1,6 +1,6 @@
 import { createInterface } from 'readline';
 
-import { output } from './output';
+import { output } from './logging';
 
 /**
  * Prompt user to confirm sending anonymous events

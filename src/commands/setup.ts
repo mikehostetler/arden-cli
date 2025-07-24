@@ -1,5 +1,5 @@
 import { spawn } from 'child_process';
-import { createInterface } from 'readline';
+import inquirer from 'inquirer';
 
 import { createAmpHistoryEvents, findAmpThreads, formatThreadSummary } from '../util/amp-history';
 import { sendEvents } from '../util/client';
@@ -10,9 +10,8 @@ import {
   GlobalOptions,
 } from '../util/command-base';
 import { AgentDetection, detectAmp, detectClaude } from '../util/detect';
-import { logger, output } from '../util/output';
-import { ensureApiToken } from '../util/settings';
-import { checkUserOrPrompt } from '../util/user-prompt';
+import { logger, output } from '../util/logging';
+import { ensureApiToken, getUserId, saveSettings, loadSettings } from '../util/settings';
 import { checkClaudeHooks, expandTilde } from './claude/init';
 
 interface InitOptions extends GlobalOptions {
@@ -36,6 +35,9 @@ async function runInit(options: InitOptions, config: ReturnType<typeof getResolv
   // Environment checks
   checkNodeVersion();
 
+  // User setup - prompt for ardenstats.com signup and user ID configuration
+  await handleUserSetup(initOptions);
+
   // Agent detection
   output.info('Detecting AI agents...');
   const claude = await detectClaude();
@@ -46,14 +48,15 @@ async function runInit(options: InitOptions, config: ReturnType<typeof getResolv
   // Claude setup flow
   if (claude.present) {
     await handleClaudeSetup(claude, initOptions);
+    await handleClaudeSync(initOptions);
   } else {
     output.info("Claude Code not found. Skip if you don't use Claude Code.");
   }
 
-  // Amp detection and history upload
+  // Amp setup flow
   if (amp.present) {
     output.info('Amp detected - built-in Arden support, no configuration needed');
-    await handleAmpHistoryUpload(initOptions, config);
+    await handleAmpSync(initOptions);
   }
 
   // API token setup (legacy support)
@@ -79,6 +82,64 @@ function checkNodeVersion() {
   }
 }
 
+async function handleUserSetup(options: InitOptions) {
+  const currentUserId = getUserId();
+  
+  if (currentUserId) {
+    output.success(`User ID already configured: ${currentUserId}`);
+    return;
+  }
+
+  output.info('No user ID configured. Setting up Arden user account...');
+  output.message('To track your agent usage on ardenstats.com, you need a user ID.');
+  output.message('');
+  output.message('1. Visit: https://ardenstats.com/auth/register');
+  output.message('2. Sign up for an account (free)');
+  output.message('3. Find your user ID in your profile settings');
+  output.message('');
+
+  if (options.yes) {
+    output.info('Skipping user ID setup (--yes mode). You can configure later with:');
+    output.info('  arden config set user_id <your-user-id>');
+    return;
+  }
+
+  const { shouldSetup } = await inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'shouldSetup',
+      message: 'Do you want to configure your user ID now?',
+      default: false,
+    },
+  ]);
+  
+  if (!shouldSetup) {
+    output.info('Skipping user ID setup. You can configure later with:');
+    output.info('  arden config set user_id <your-user-id>');
+    return;
+  }
+
+  const { userId } = await inquirer.prompt([
+    {
+      type: 'input',
+      name: 'userId',
+      message: 'Enter your user ID (or press Enter to skip):',
+      validate: (input: string) => {
+        const trimmed = input.trim();
+        return trimmed.length > 0 || 'User ID cannot be empty (or press Enter to skip)';
+      },
+      filter: (input: string) => input.trim() || null,
+    },
+  ]);
+
+  if (userId) {
+    const settings = loadSettings();
+    settings.user_id = userId;
+    saveSettings(settings);
+    output.success(`User ID configured: ${userId}`);
+  }
+}
+
 function showDetectionSummary({ claude, amp }: { claude: AgentDetection; amp: AgentDetection }) {
   output.info('Detection Summary:');
 
@@ -101,7 +162,7 @@ async function handleClaudeSetup(_claude: AgentDetection, options: InitOptions) 
   output.info('Configuring Claude Code...');
 
   const settingsPath = expandTilde('~/.claude/settings.json');
-  const needsInstall = await checkClaudeHooks(settingsPath, options.host);
+  const needsInstall = await checkClaudeHooks(settingsPath);
 
   if (!needsInstall) {
     output.success('Arden hooks already installed in Claude settings');
@@ -110,8 +171,19 @@ async function handleClaudeSetup(_claude: AgentDetection, options: InitOptions) 
 
   output.warn('Arden hooks not found in Claude settings');
 
-  const shouldInstall =
-    options.yes || (await confirm('Install Arden hooks for Claude Code? (y/N)'));
+  let shouldInstall = options.yes;
+  
+  if (!shouldInstall) {
+    const { install } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'install',
+        message: 'Install Arden hooks for Claude Code?',
+        default: false,
+      },
+    ]);
+    shouldInstall = install;
+  }
 
   if (!shouldInstall) {
     output.info('Skipping Claude hook installation');
@@ -141,19 +213,7 @@ async function handleClaudeSetup(_claude: AgentDetection, options: InitOptions) 
   }
 }
 
-async function confirm(question: string): Promise<boolean> {
-  const rl = createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
 
-  return new Promise(resolve => {
-    rl.question(question + ' ', answer => {
-      rl.close();
-      resolve(['y', 'yes'].includes(answer.trim().toLowerCase()));
-    });
-  });
-}
 
 async function spawnProcess(command: string, args: string[]): Promise<{ code: number }> {
   return new Promise(resolve => {
@@ -173,17 +233,73 @@ async function spawnProcess(command: string, args: string[]): Promise<{ code: nu
   });
 }
 
-async function handleAmpHistoryUpload(
-  options: InitOptions,
-  config: ReturnType<typeof getResolvedConfig>
-) {
-  // Check if user wants to proceed with anonymous events if no user ID
-  const shouldProceed = await checkUserOrPrompt(config.userId);
-  if (!shouldProceed) {
-    output.info('Amp history upload cancelled.');
+async function handleClaudeSync(options: InitOptions) {
+  const currentUserId = getUserId();
+  if (!currentUserId) {
+    output.info('Skipping Claude sync - no user ID configured');
     return;
   }
 
+  output.info('Syncing Claude Code usage logs...');
+
+  try {
+    const args = [
+      process.argv[0], // node executable
+      process.argv[1], // arden script
+      ...(options.host ? ['--host', options.host] : []),
+      'claude',
+      'sync',
+    ].filter((arg): arg is string => arg !== undefined);
+
+    const result = await spawnProcess(process.execPath, args.slice(1));
+
+    if (result.code === 0) {
+      output.success('Claude logs synced successfully');
+    } else {
+      output.warn('Claude sync completed with warnings (see above)');
+    }
+  } catch (error) {
+    logger.error(`Failed to sync Claude logs: ${(error as Error).message}`);
+    output.warn('Could not sync Claude Code logs');
+  }
+}
+
+async function handleAmpSync(options: InitOptions) {
+  const currentUserId = getUserId();
+  if (!currentUserId) {
+    output.info('Skipping Amp sync - no user ID configured');
+    return;
+  }
+
+  // Use the regular amp sync command which works correctly
+  output.info('Syncing Amp usage logs...');
+
+  try {
+    const threadsPath = expandTilde('~/.amp/file-changes');
+    const args = [
+      process.argv[0], // node executable
+      process.argv[1], // arden script
+      ...(options.host ? ['--host', options.host] : []),
+      'amp',
+      'sync',
+      '--threads',
+      threadsPath,
+    ].filter((arg): arg is string => arg !== undefined);
+
+    const result = await spawnProcess(process.execPath, args.slice(1));
+
+    if (result.code === 0) {
+      output.success('Amp logs synced successfully');
+    } else {
+      output.warn('Amp sync completed with warnings (see above)');
+    }
+  } catch (error) {
+    logger.error(`Failed to sync Amp logs: ${(error as Error).message}`);
+    output.warn('Could not sync Amp logs');
+  }
+}
+
+async function handleAmpHistoryUpload(options: InitOptions) {
   output.info('Checking for existing Amp thread history...');
 
   const threads = await findAmpThreads();
@@ -195,11 +311,19 @@ async function handleAmpHistoryUpload(
 
   output.message(formatThreadSummary(threads));
 
-  const shouldUpload =
-    options.yes ||
-    (await confirm(
-      `Upload ${threads.length} existing Amp thread(s) to ardenstats.com under agent A-AMP? (y/N)`
-    ));
+  let shouldUpload = options.yes;
+  
+  if (!shouldUpload) {
+    const { upload } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'upload',
+        message: `Upload ${threads.length} existing Amp thread(s) to ardenstats.com under agent A-AMP?`,
+        default: false,
+      },
+    ]);
+    shouldUpload = upload;
+  }
 
   if (!shouldUpload) {
     output.info('Skipping Amp history upload');
@@ -231,8 +355,18 @@ function showSuccessMessage() {
   output.success('Initialization complete!');
   output.message('\nArden is now configured to track your AI agent usage.');
   output.message('Your agents will automatically send telemetry to ardenstats.com');
+  output.message('\nWhat was configured:');
+  const userId = getUserId();
+  if (userId) {
+    output.message(`• User ID: ${userId}`);
+  }
+  output.message('• Claude Code hooks installed (if present)');
+  output.message('• Historical logs synced to ardenstats.com');
   output.message('\nNext steps:');
   output.message('• Use Claude Code or Amp as normal');
   output.message('• Visit https://ardenstats.com to view your usage analytics');
   output.message("• Run 'arden --help' to see additional commands");
+  if (!userId) {
+    output.message("• Configure your user ID with 'arden config set user_id <your-user-id>'");
+  }
 }

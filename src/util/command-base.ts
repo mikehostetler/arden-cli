@@ -1,7 +1,7 @@
 import { Command, Option } from 'commander';
 import { z } from 'zod';
 
-import { createLogger, output } from './output';
+import { createLogger, output } from './logging';
 import { getApiToken, getHost, getLogLevel, getSettingValue, getUserId } from './settings';
 import { ValidationError } from './validation';
 

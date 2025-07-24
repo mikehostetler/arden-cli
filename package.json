@@ -82,8 +82,8 @@
   },
   "homepage": "https://ardenstats.com",
   "devDependencies": {
-    "@types/inquirer": "9.0.8",
-    "@types/node": "^22.0.0",
+    "@types/inquirer": "^9.0.8",
+    "@types/node": "^24.1.0",
     "@types/p-map": "^2.0.0",
     "@typescript-eslint/eslint-plugin": "^8.37.0",
     "@typescript-eslint/parser": "^8.37.0",
@@ -101,11 +101,16 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@types/cli-progress": "^3.11.6",
+    "boxen": "^8.0.1",
     "ccusage": "^15.5.0",
+    "chalk": "^5.4.1",
+    "cli-progress": "^3.12.0",
     "commander": "^12.1.0",
     "dotenv": "^16.4.5",
-    "inquirer": "10.2.2",
+    "inquirer": "^12.8.2",
     "ky": "^1.8.1",
+    "ora": "^8.2.0",
     "p-map": "^7.0.3",
     "signale": "^1.4.0",
     "znv": "^0.4.0",

@@ -4,8 +4,7 @@ import { homedir } from 'os';
 import { dirname } from 'path';
 import { createInterface } from 'readline';
 
-import logger from '../../util/logger';
-import { output } from '../../util/output';
+import { logger, output } from '../../util/logging';
 
 interface InitOpts {
   settings: string;

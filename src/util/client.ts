@@ -1,9 +1,9 @@
+import * as cliProgress from 'cli-progress';
 import pMap from 'p-map';
 import { gzipSync } from 'zlib';
 
 import env from './env';
-import logger from './logger';
-import { output } from './output';
+import { logger, output } from './logging';
 import { TelemetryEvent, validateEvents } from './schema';
 import { normalizeTimestamp } from './time';
 
@@ -48,6 +48,8 @@ export interface ClientOptions {
   chunkSize?: number | undefined;
   maxConcurrency?: number | undefined;
   compressionThreshold?: number | undefined;
+  // UI options
+  showProgress?: boolean | undefined;
 }
 
 export interface TelemetryResponse {
@@ -67,10 +69,12 @@ export class Client {
   private readonly maxConcurrency: number;
   private readonly compressionThreshold: number;
   private readonly silent: boolean;
+  private readonly showProgress: boolean;
   private httpClient: KyInstance;
 
   constructor(options: ClientOptions & { silent?: boolean } = {}) {
-    this.host = (options.host?.replace(/\/$/, '') || env.HOST) as string;
+    const { getHost } = require('./settings');
+    this.host = (options.host?.replace(/\/$/, '') || getHost()) as string;
     this.token = options.token;
     this.timeout = options.timeout || 30000;
     this.maxRetries = options.maxRetries || 3;
@@ -81,6 +85,7 @@ export class Client {
       options.compressionThreshold ||
       parseInt(process.env.ARDEN_COMPRESSION_THRESHOLD || '65536', 10); // 64 KiB
     this.silent = options.silent ?? false;
+    this.showProgress = options.showProgress ?? false;
 
     // TASK T10: Add host validation
     validateHost(this.host, options.insecure || false);
@@ -124,10 +129,32 @@ export class Client {
     // Process in configurable chunks with parallel uploads
     const chunks = this.chunkEvents(validatedEvents, this.chunkSize);
 
+    let progressBar: cliProgress.SingleBar | null = null;
+    
+    if (this.showProgress && !this.silent && chunks.length > 1) {
+      progressBar = new cliProgress.SingleBar({
+        format: 'Uploading events |{bar}| {percentage}% | {value}/{total} chunks',
+        barCompleteChar: '\u2588',
+        barIncompleteChar: '\u2591',
+        hideCursor: true,
+      });
+      progressBar.start(chunks.length, 0);
+    }
+
     // Use p-map for controlled parallel processing
-    const results = await pMap(chunks, async chunk => await this.sendChunk(chunk), {
+    const results = await pMap(chunks, async (chunk, index) => {
+      const result = await this.sendChunk(chunk);
+      if (progressBar) {
+        progressBar.increment();
+      }
+      return result;
+    }, {
       concurrency: this.maxConcurrency,
     });
+
+    if (progressBar) {
+      progressBar.stop();
+    }
 
     return this.combineResults(results);
   }
@@ -162,11 +189,11 @@ export class Client {
         delete options.json;
       }
 
-      if (!this.silent) {
+      if (!this.silent && !this.showProgress) {
         logger.debug(`Making POST request to: ${this.host}/api/events`);
       }
       const response = await httpClient.post('api/events', options).json<TelemetryResponse>();
-      if (!this.silent) {
+      if (!this.silent && !this.showProgress) {
         logger.debug(`Received response: ${JSON.stringify(response)}`);
       }
       return response;
@@ -255,11 +282,12 @@ export async function sendTelemetry(
   event: string,
   data: TelemetryData,
   host?: string,
-  silent = false
+  silent = false,
+  showProgress = false
 ): Promise<void> {
   try {
     const { getUserId } = await import('./settings');
-    const client = new Client(host ? { host, silent } : { silent });
+    const client = new Client(host ? { host, silent, showProgress } : { silent, showProgress });
 
     // Send payload as JSON object (Elixir server expects :map type)
     const telemetryEvent: TelemetryEvent = {
@@ -271,17 +299,17 @@ export async function sendTelemetry(
       data: data.payload as Record<string, any>,
     };
 
-    if (!silent) {
+    if (!silent && !showProgress) {
       logger.debug(`Built telemetry event:`, telemetryEvent);
     }
 
     await client.sendEvents([telemetryEvent]);
     
-    if (!silent) {
+    if (!silent && !showProgress) {
       logger.info(`[TELEMETRY] ${event} sent to ${host || env.HOST}`);
     }
   } catch (error) {
-    if (!silent) {
+    if (!silent && !showProgress) {
       logger.error(`[TELEMETRY] Failed to send ${event} to ${host || env.HOST}:`, error);
     }
     throw error; // Re-throw for hook handler to catch and handle appropriately

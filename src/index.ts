@@ -7,7 +7,7 @@ import { claudeCommand } from './commands/claude';
 import { configCommand } from './commands/config';
 import { eventCommand } from './commands/events';
 import { initCommand } from './commands/setup';
-import logger from './util/logger';
+import { logger } from './util/logging';
 import { getHost } from './util/settings';
 import { checkAndDisplayUpdate } from './util/update-checker';
 

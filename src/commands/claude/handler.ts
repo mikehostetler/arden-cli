@@ -1,7 +1,6 @@
 // Claude Code agent ID constant
 import { sendTelemetry } from '../../util/client';
-import logger from '../../util/logger';
-import { output } from '../../util/output';
+import { logger, output } from '../../util/logging';
 import { getCurrentDateISO } from '../../util/time';
 import { ClaudeHook } from './hooks';
 

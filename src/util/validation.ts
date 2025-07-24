@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import logger from './logger';
+import { logger } from './logging';
 
 /**
  * Validation error with formatted user-friendly messages

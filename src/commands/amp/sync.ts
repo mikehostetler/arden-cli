@@ -1,3 +1,4 @@
+import * as cliProgress from 'cli-progress';
 import { Command } from 'commander';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -6,7 +7,7 @@ import * as path from 'path';
 import { AGENTS } from '../../agents';
 import { calculateDirectoryChecksum } from '../../util/checksum';
 import { sendTelemetry } from '../../util/client';
-import logger from '../../util/logger';
+import { logger, output } from '../../util/logging';
 import { getUserId, isAmpThreadSynced, recordAmpThreadSynced } from '../../util/settings';
 import { checkUserOrPrompt } from '../../util/user-prompt';
 
@@ -73,35 +74,57 @@ async function syncAmpThreads(options: AmpOptions): Promise<void> {
     return;
   }
 
-  logger.info(`Found ${threads.length} Amp thread directories`);
+  output.info(`Found ${threads.length} Amp thread directories`);
 
-  let totalEvents = 0;
+  // Filter threads that need syncing
+  const threadsToSync = [];
   let skippedThreads = 0;
 
   for (const thread of threads) {
-    try {
-      // Check if thread needs syncing (unless force flag is used)
-      if (!options.force) {
-        const checksum = calculateDirectoryChecksum(thread.path);
-        if (isAmpThreadSynced(thread.path, checksum)) {
-          logger.debug(`Skipping already synced thread: ${thread.threadId}`);
-          skippedThreads++;
-          continue;
-        }
+    if (!options.force) {
+      const checksum = calculateDirectoryChecksum(thread.path);
+      if (isAmpThreadSynced(thread.path, checksum)) {
+        logger.debug(`Skipping already synced thread: ${thread.threadId}`);
+        skippedThreads++;
+        continue;
       }
+    }
+    threadsToSync.push(thread);
+  }
 
-      const events = await processAmpThread(thread, options.host, options.force);
+  if (threadsToSync.length === 0) {
+    output.info('All threads are already synced (use --force to re-sync)');
+    return;
+  }
+
+  // Create progress bar for sync operations
+  const progressBar = new cliProgress.SingleBar({
+    format: 'Syncing threads |{bar}| {percentage}% | {value}/{total} threads',
+    barCompleteChar: '\u2588',
+    barIncompleteChar: '\u2591',
+    hideCursor: true,
+  });
+  
+  progressBar.start(threadsToSync.length, 0);
+
+  let totalEvents = 0;
+  for (const thread of threadsToSync) {
+    try {
+      const events = await processAmpThread(thread, options.host, options.force, true);
       totalEvents += events;
-      logger.info(`Processed ${events} events from thread ${thread.threadId}`);
+      progressBar.increment();
     } catch (error) {
       logger.error(`Failed to process thread ${thread.threadId}: ${(error as Error).message}`);
+      progressBar.increment();
     }
   }
 
+  progressBar.stop();
+
   if (skippedThreads > 0) {
-    logger.info(`Skipped ${skippedThreads} already synced threads (use --force to re-sync)`);
+    output.info(`Skipped ${skippedThreads} already synced threads (use --force to re-sync)`);
   }
-  logger.info(`Successfully synced ${totalEvents} Amp thread events`);
+  output.success(`Successfully synced ${totalEvents} Amp thread events`);
 }
 
 export function findThreadDirectories(threadsDir: string): AmpThread[] {
@@ -173,11 +196,12 @@ function getDirectorySize(dir: string): number {
 async function processAmpThread(
   thread: AmpThread,
   host?: string,
-  _force?: boolean
+  _force?: boolean,
+  showProgress = false
 ): Promise<number> {
   try {
     const ardenEvent = transformToArdenEvent(thread);
-    await sendTelemetry('amp.thread', ardenEvent, host);
+    await sendTelemetry('amp.thread', ardenEvent, host, false, showProgress);
 
     // Record sync state for this thread
     const checksum = calculateDirectoryChecksum(thread.path);
