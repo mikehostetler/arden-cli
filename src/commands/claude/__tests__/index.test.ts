@@ -1,30 +1,35 @@
-import { describe, it, expect } from "bun:test";
-import { claudeCommand } from "../index";
+import { describe, expect, it } from 'bun:test';
 
-describe("claude command", () => {
-  it("should be configured correctly", () => {
-    expect(claudeCommand.name()).toBe("claude");
-    expect(claudeCommand.description()).toBe("Claude Code integration");
+import { claudeCommand } from '../index';
+
+describe('claude command', () => {
+  it('should be configured correctly', () => {
+    expect(claudeCommand.name()).toBe('claude');
+    expect(claudeCommand.description()).toBe('Claude Code integration');
   });
 
-  it("should have install subcommand", () => {
+  it('should have init subcommand', () => {
     const subcommands = claudeCommand.commands.map(cmd => cmd.name());
-    expect(subcommands).toContain("install");
+    expect(subcommands).toContain('init');
   });
 
-  it("should have hook subcommand", () => {
+  it('should have sync subcommand', () => {
     const subcommands = claudeCommand.commands.map(cmd => cmd.name());
-    expect(subcommands).toContain("hook");
+    expect(subcommands).toContain('sync');
   });
 
-  it("should have hook subcommand with correct configuration", () => {
-    const hookCommand = claudeCommand.commands.find(cmd => cmd.name() === "hook");
+  it('should have hook subcommand', () => {
+    const subcommands = claudeCommand.commands.map(cmd => cmd.name());
+    expect(subcommands).toContain('hook');
+  });
+
+  it('should have hook subcommand with correct configuration', () => {
+    const hookCommand = claudeCommand.commands.find(cmd => cmd.name() === 'hook');
     expect(hookCommand).toBeDefined();
-    expect(hookCommand?.description()).toBe("(internal) invoked by Claude Code runtime");
-    
+    expect(hookCommand?.description()).toBe('(internal) invoked by Claude Code runtime');
+
     // Check that it has the expected options
     const options = hookCommand?.options.map(opt => opt.long);
-    expect(options).toContain("--dry-run");
-    expect(options).toContain("--print");
+    expect(options).toContain('--print');
   });
 });

@@ -1,247 +1,441 @@
-#!/usr/bin/env node
-
-import { spawn } from 'child_process';
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
+import { execa } from 'execa';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
+import { http, HttpResponse } from 'msw';
+import { setupServer } from 'msw/node';
+import { tmpdir } from 'os';
 import { join } from 'path';
-import { existsSync } from 'fs';
 
-interface TestResult {
-  name: string;
-  passed: boolean;
-  error?: string;
-  duration: number;
-}
+import type { CliResult } from './setup';
 
-class IntegrationTester {
-  private host: string;
-  private token: string;
-  private cliPath: string;
-  
-  constructor(host: string = 'http://localhost:4000', token: string = 'test-token') {
-    this.host = host;
-    this.token = token;
-    this.cliPath = join(__dirname, '..', 'dist', 'index.js');
+/**
+ * E2E Integration Tests for arden-cli
+ *
+ * Tests the full CLI workflow from command invocation to output,
+ * using msw for API mocking and execa for CLI execution.
+ */
+
+// Test server setup
+const TEST_HOST = 'http://localhost:9999';
+const TEST_API_TOKEN = 'test-token-123';
+const TEST_USER_ID = 'test-user-456';
+
+// Mock API server
+const server = setupServer(
+  // Events endpoints
+  http.post(`${TEST_HOST}/api/events`, () => {
+    return HttpResponse.json({
+      success: true,
+      event_id: 'evt_123',
+      message: 'Event sent successfully',
+    });
+  }),
+
+  http.post(`${TEST_HOST}/api/events/batch`, () => {
+    return HttpResponse.json({
+      success: true,
+      events_processed: 2,
+      message: 'Batch events sent successfully',
+    });
+  }),
+
+  // Agents endpoints
+  http.get(`${TEST_HOST}/api/agents`, () => {
+    return HttpResponse.json({
+      agents: [
+        { id: 'agent-1', name: 'Test Agent 1', status: 'active' },
+        { id: 'agent-2', name: 'Test Agent 2', status: 'inactive' },
+      ],
+    });
+  }),
+
+  http.get(`${TEST_HOST}/api/agents/leaderboard`, () => {
+    return HttpResponse.json({
+      leaderboard: [
+        { agent_id: 'agent-1', score: 100, rank: 1 },
+        { agent_id: 'agent-2', score: 85, rank: 2 },
+      ],
+    });
+  }),
+
+  // Users endpoints
+  http.get(`${TEST_HOST}/api/users/leaderboard`, () => {
+    return HttpResponse.json({
+      leaderboard: [
+        { user_id: 'user-1', score: 200, rank: 1 },
+        { user_id: 'user-2', score: 150, rank: 2 },
+      ],
+    });
+  }),
+
+  // Error responses
+  http.post(`${TEST_HOST}/api/events/error`, () => {
+    return HttpResponse.json({ error: 'Invalid event data' }, { status: 400 });
+  }),
+
+  http.get(`${TEST_HOST}/api/unauthorized`, () => {
+    return HttpResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  })
+);
+
+// Test environment
+let testDir: string;
+let settingsDir: string;
+let settingsFile: string;
+let cliPath: string;
+
+beforeAll(async () => {
+  // Start mock server
+  server.listen({ onUnhandledRequest: 'error' });
+
+  // Create test directory
+  testDir = join(tmpdir(), 'arden-cli-e2e-' + Math.random().toString(36).substring(7));
+  settingsDir = join(testDir, '.arden');
+  settingsFile = join(settingsDir, 'settings.json');
+
+  if (!existsSync(testDir)) {
+    mkdirSync(testDir, { recursive: true });
   }
 
-  async runTest(testName: string, testFn: () => Promise<void>): Promise<TestResult> {
-    const startTime = Date.now();
-    
-    try {
-      console.log(`🧪 Running test: ${testName}`);
-      await testFn();
-      const duration = Date.now() - startTime;
-      console.log(`✅ ${testName} passed (${duration}ms)`);
-      return { name: testName, passed: true, duration };
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      console.log(`❌ ${testName} failed (${duration}ms)`);
-      console.log(`   Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      return { 
-        name: testName, 
-        passed: false, 
-        error: error instanceof Error ? error.message : 'Unknown error',
-        duration 
+  // Build CLI
+  const buildResult = await execa('bun', ['run', 'build'], {
+    cwd: process.cwd(),
+    stdio: 'pipe',
+  });
+
+  if (buildResult.exitCode !== 0) {
+    throw new Error(`Failed to build CLI: ${buildResult.stderr}`);
+  }
+
+  cliPath = join(process.cwd(), 'dist', 'index.js');
+
+  if (!existsSync(cliPath)) {
+    throw new Error(`CLI executable not found at ${cliPath}`);
+  }
+});
+
+afterAll(() => {
+  // Stop mock server
+  server.close();
+
+  // Clean up test directory
+  if (existsSync(testDir)) {
+    rmSync(testDir, { recursive: true, force: true });
+  }
+});
+
+/**
+ * Execute CLI command with test environment
+ */
+async function runCli(
+  args: string[],
+  options: {
+    env?: Record<string, string>;
+    input?: string;
+    expectError?: boolean;
+  } = {}
+): Promise<CliResult> {
+  const env = {
+    HOME: testDir,
+    NODE_ENV: 'test',
+    ARDEN_HOST: TEST_HOST,
+    ...options.env,
+  };
+
+  try {
+    const result = await execa('node', [cliPath, ...args], {
+      env,
+      input: options.input,
+      stdio: 'pipe',
+      timeout: 10000,
+    });
+
+    return {
+      exitCode: result.exitCode,
+      stdout: result.stdout,
+      stderr: result.stderr,
+      command: `arden ${args.join(' ')}`,
+    };
+  } catch (error: any) {
+    if (options.expectError) {
+      return {
+        exitCode: error.exitCode || 1,
+        stdout: error.stdout || '',
+        stderr: error.stderr || '',
+        command: `arden ${args.join(' ')}`,
       };
     }
-  }
-
-  private async runCLI(args: string[]): Promise<{ stdout: string; stderr: string; exitCode: number }> {
-    return new Promise((resolve, reject) => {
-      const child = spawn('node', [this.cliPath, ...args], {
-        stdio: 'pipe',
-        env: {
-          ...process.env,
-          HOST: this.host,
-          ARDEN_API_TOKEN: this.token,
-          LOG_LEVEL: 'info' // Keep logs for test validation
-        }
-      });
-
-      let stdout = '';
-      let stderr = '';
-
-      child.stdout?.on('data', (data) => {
-        stdout += data.toString();
-      });
-
-      child.stderr?.on('data', (data) => {
-        stderr += data.toString();
-      });
-
-      child.on('close', (code) => {
-        resolve({ stdout, stderr, exitCode: code || 0 });
-      });
-
-      child.on('error', (error) => {
-        reject(error);
-      });
-
-      // Timeout after 10 seconds
-      setTimeout(() => {
-        child.kill();
-        reject(new Error('CLI command timed out'));
-      }, 10000);
-    });
-  }
-
-  async testSingleEventSubmission(): Promise<void> {
-    const result = await this.runCLI([
-      '--host', this.host,
-      'events', 'send',
-      '--agent', 'A-8139',
-      '--user', '01ARZ3NDEKTSV4RRFFQ69G5FAV',
-      '--bid', '100',
-      '--mult', '1',
-      '--data', '{"test": "integration"}',
-      '--token', this.token
-    ]);
-
-    // For this test, we expect either success OR a network error
-    // If the server is not running, the CLI should handle it gracefully
-    if (result.exitCode === 1) {
-      // Check if it's a network error (connection refused, etc.)
-      if (result.stdout.includes('Failed to send event') || 
-          result.stdout.includes('connection refused') ||
-          result.stdout.includes('ECONNREFUSED') ||
-          result.stdout.includes('fetch failed')) {
-        // This is expected when the server isn't running
-        console.log('   ⚠️  Server not running - test passed with network error');
-        return;
-      }
-    }
-
-    if (result.exitCode !== 0) {
-      throw new Error(`CLI exited with code ${result.exitCode}. stderr: ${result.stderr}`);
-    }
-
-    // Check if success message is in output (logs go to stdout)
-    if (!result.stdout.includes('Event sent successfully') && !result.stdout.includes('ID:')) {
-      throw new Error(`Expected success message not found. Exit code: ${result.exitCode}. stdout: ${result.stdout}. stderr: ${result.stderr}`);
-    }
-  }
-
-  async testEventValidation(): Promise<void> {
-    const result = await this.runCLI([
-      '--host', this.host,
-      'events', 'send',
-      '--agent', 'A-8139',
-      '--bid', '100',
-      '--data', '{"validation": "test"}',
-      '--dry-run',
-      '--token', this.token
-    ]);
-
-    if (result.exitCode !== 0) {
-      throw new Error(`CLI exited with code ${result.exitCode}. stderr: ${result.stderr}`);
-    }
-
-    // Check if dry run message is in output (logs go to stdout)
-    if (!result.stdout.includes('Dry run - event validated successfully') && !result.stdout.includes('validated successfully')) {
-      throw new Error(`Expected dry run success message not found. Exit code: ${result.exitCode}. stdout: ${result.stdout}. stderr: ${result.stderr}`);
-    }
-  }
-
-  async testMissingRequiredAgent(): Promise<void> {
-    const result = await this.runCLI([
-      '--host', this.host,
-      'events', 'send',
-      '--bid', '100',
-      '--data', '{"test": "missing-agent"}',
-      '--token', this.token
-    ]);
-
-    if (result.exitCode === 0) {
-      throw new Error('Expected CLI to fail with missing agent, but it succeeded');
-    }
-
-    if (!result.stdout.includes('--agent is required') && !result.stderr.includes('--agent is required')) {
-      throw new Error(`Expected missing agent error not found. stdout: ${result.stdout}. stderr: ${result.stderr}`);
-    }
-  }
-
-  async testKeyValueDataParsing(): Promise<void> {
-    const result = await this.runCLI([
-      '--host', this.host,
-      'events', 'send',
-      '--agent', 'A-8139',
-      '--dry-run',
-      '--token', this.token,
-      'key1=value1',
-      'key2=123',
-      'key3=true'
-    ]);
-
-    if (result.exitCode !== 0) {
-      throw new Error(`CLI exited with code ${result.exitCode}. stderr: ${result.stderr}`);
-    }
-
-    if (!result.stdout.includes('Dry run - event validated successfully') && !result.stdout.includes('validated successfully')) {
-      throw new Error(`Expected dry run success message not found. stdout: ${result.stdout}. stderr: ${result.stderr}`);
-    }
-  }
-
-  async runAllTests(): Promise<void> {
-    console.log(`🚀 Starting integration tests against ${this.host}\n`);
-
-    // Check if CLI is built
-    if (!existsSync(this.cliPath)) {
-      throw new Error(`CLI not found at ${this.cliPath}. Please run 'bun run build' first.`);
-    }
-
-    const tests = [
-      () => this.testSingleEventSubmission(),
-      () => this.testEventValidation(),
-      () => this.testMissingRequiredAgent(),
-      () => this.testKeyValueDataParsing()
-    ];
-
-    const testNames = [
-      'Single Event Submission',
-      'Event Validation (Dry Run)',
-      'Missing Required Agent Error',
-      'Key-Value Data Parsing'
-    ];
-
-    const results: TestResult[] = [];
-
-    for (let i = 0; i < tests.length; i++) {
-      const result = await this.runTest(testNames[i], tests[i]);
-      results.push(result);
-    }
-
-    // Summary
-    const passed = results.filter(r => r.passed).length;
-    const failed = results.filter(r => !r.passed).length;
-    const totalTime = results.reduce((sum, r) => sum + r.duration, 0);
-
-    console.log(`\n📊 Test Results:`);
-    console.log(`   Total: ${results.length}`);
-    console.log(`   Passed: ${passed}`);
-    console.log(`   Failed: ${failed}`);
-    console.log(`   Duration: ${totalTime}ms`);
-
-    if (failed > 0) {
-      console.log(`\n❌ Failed tests:`);
-      results.filter(r => !r.passed).forEach(r => {
-        console.log(`   - ${r.name}: ${r.error}`);
-      });
-      process.exit(1);
-    } else {
-      console.log(`\n✅ All tests passed!`);
-    }
+    throw error;
   }
 }
 
-// Parse command line arguments
-const args = process.argv.slice(2);
-const hostArg = args.find(arg => arg.startsWith('--host='));
-const tokenArg = args.find(arg => arg.startsWith('--token='));
+/**
+ * Create test settings file
+ */
+function createSettings(settings: Record<string, any>) {
+  if (!existsSync(settingsDir)) {
+    mkdirSync(settingsDir, { recursive: true });
+  }
+  writeFileSync(settingsFile, JSON.stringify(settings, null, 2));
+}
 
-const host = hostArg ? hostArg.split('=')[1] : 'http://localhost:4000';
-const token = tokenArg ? tokenArg.split('=')[1] : 'test-token';
+describe('E2E CLI Tests', () => {
+  describe('config command', () => {
+    it('should set and get configuration values', async () => {
+      // Set configuration
+      const setResult = await runCli(['config', '--set', `api_token=${TEST_API_TOKEN}`]);
+      expect(setResult.exitCode).toBe(0);
+      expect(setResult.stdout).toContain('✓ Set api_token = [SET]');
 
-const tester = new IntegrationTester(host, token);
+      // Get configuration
+      const getResult = await runCli(['config', '--get', 'api_token']);
+      expect(getResult.exitCode).toBe(0);
+      expect(getResult.stdout.trim()).toBe(TEST_API_TOKEN);
 
-tester.runAllTests().catch((error) => {
-  console.error(`💥 Integration test suite failed: ${error.message}`);
-  process.exit(1);
+      // List configuration
+      const listResult = await runCli(['config', '--list']);
+      expect(listResult.exitCode).toBe(0);
+      expect(listResult.stdout).toContain('api_token = [SET]');
+    });
+
+    it('should handle invalid configuration keys', async () => {
+      const result = await runCli(['config', '--set', 'invalid_key=value'], { expectError: true });
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain('Invalid configuration key');
+    });
+  });
+
+  describe('events send command', () => {
+    it('should send single event successfully', async () => {
+      createSettings({
+        api_token: TEST_API_TOKEN,
+        user_id: TEST_USER_ID,
+        host: TEST_HOST,
+      });
+
+      const result = await runCli([
+        'events',
+        'send',
+        '--type',
+        'test_event',
+        '--agent-id',
+        'test-agent',
+        '--data',
+        '{"key":"value"}',
+      ]);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('✓ Event sent successfully');
+      expect(result.stdout).toContain('Event ID: evt_123');
+    });
+
+    it('should handle missing authentication', async () => {
+      // No settings file
+      const result = await runCli(
+        ['events', 'send', '--type', 'test_event', '--agent-id', 'test-agent'],
+        { expectError: true }
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain('API token is required');
+    });
+
+    it('should validate event data', async () => {
+      createSettings({
+        api_token: TEST_API_TOKEN,
+        user_id: TEST_USER_ID,
+        host: TEST_HOST,
+      });
+
+      const result = await runCli(
+        [
+          'events',
+          'send',
+          '--type',
+          '', // Invalid empty type
+          '--agent-id',
+          'test-agent',
+        ],
+        { expectError: true }
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain('Event type is required');
+    });
+  });
+
+  describe('events batch command', () => {
+    it('should send batch events from JSON input', async () => {
+      createSettings({
+        api_token: TEST_API_TOKEN,
+        user_id: TEST_USER_ID,
+        host: TEST_HOST,
+      });
+
+      const batchData = JSON.stringify([
+        { type: 'event1', agent_id: 'agent1', data: { key1: 'value1' } },
+        { type: 'event2', agent_id: 'agent2', data: { key2: 'value2' } },
+      ]);
+
+      const result = await runCli(['events', 'batch'], {
+        input: batchData,
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('✓ Batch events sent successfully');
+      expect(result.stdout).toContain('Events processed: 2');
+    });
+
+    it('should handle invalid JSON input', async () => {
+      createSettings({
+        api_token: TEST_API_TOKEN,
+        user_id: TEST_USER_ID,
+        host: TEST_HOST,
+      });
+
+      const result = await runCli(['events', 'batch'], {
+        input: 'invalid json',
+        expectError: true,
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain('Invalid JSON');
+    });
+  });
+
+  describe('agents list command', () => {
+    it('should list agents in table format', async () => {
+      createSettings({
+        api_token: TEST_API_TOKEN,
+        host: TEST_HOST,
+      });
+
+      const result = await runCli(['agents', 'list']);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('agent-1');
+      expect(result.stdout).toContain('Test Agent 1');
+      expect(result.stdout).toContain('active');
+    });
+
+    it('should list agents in JSON format', async () => {
+      createSettings({
+        api_token: TEST_API_TOKEN,
+        host: TEST_HOST,
+      });
+
+      const result = await runCli(['agents', 'list', '--format', 'json']);
+
+      expect(result.exitCode).toBe(0);
+
+      const output = JSON.parse(result.stdout);
+      expect(output.agents).toHaveLength(2);
+      expect(output.agents[0].id).toBe('agent-1');
+    });
+  });
+
+  describe('agents leaderboard command', () => {
+    it('should show agents leaderboard', async () => {
+      createSettings({
+        api_token: TEST_API_TOKEN,
+        host: TEST_HOST,
+      });
+
+      const result = await runCli(['agents', 'leaderboard']);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('agent-1');
+      expect(result.stdout).toContain('100');
+      expect(result.stdout).toContain('1'); // rank
+    });
+  });
+
+  describe('users leaderboard command', () => {
+    it('should show users leaderboard', async () => {
+      createSettings({
+        api_token: TEST_API_TOKEN,
+        host: TEST_HOST,
+      });
+
+      const result = await runCli(['users', 'leaderboard']);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('user-1');
+      expect(result.stdout).toContain('200');
+      expect(result.stdout).toContain('1'); // rank
+    });
+  });
+
+  describe('global options', () => {
+    it('should use global --host option', async () => {
+      createSettings({
+        api_token: TEST_API_TOKEN,
+        user_id: TEST_USER_ID,
+      });
+
+      const result = await runCli([
+        '--host',
+        TEST_HOST,
+        'events',
+        'send',
+        '--type',
+        'test_event',
+        '--agent-id',
+        'test-agent',
+      ]);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('✓ Event sent successfully');
+    });
+
+    it('should show help when no command provided', async () => {
+      const result = await runCli(['--help']);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Usage:');
+      expect(result.stdout).toContain('arden');
+      expect(result.stdout).toContain('Commands:');
+    });
+  });
+
+  describe('error handling', () => {
+    it('should handle network errors gracefully', async () => {
+      createSettings({
+        api_token: TEST_API_TOKEN,
+        user_id: TEST_USER_ID,
+        host: 'http://localhost:99999', // Non-existent port
+      });
+
+      const result = await runCli(
+        ['events', 'send', '--type', 'test_event', '--agent-id', 'test-agent'],
+        { expectError: true }
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain('Failed to send event');
+    });
+
+    it('should handle API errors with proper status codes', async () => {
+      createSettings({
+        api_token: TEST_API_TOKEN,
+        user_id: TEST_USER_ID,
+        host: TEST_HOST,
+      });
+
+      // Override server to return error for this specific test
+      server.use(
+        http.post(`${TEST_HOST}/api/events`, () => {
+          return HttpResponse.json({ error: 'Invalid event data' }, { status: 400 });
+        })
+      );
+
+      const result = await runCli(
+        ['events', 'send', '--type', 'test_event', '--agent-id', 'test-agent'],
+        { expectError: true }
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain('Invalid event data');
+    });
+  });
 });

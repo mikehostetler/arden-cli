@@ -1,0 +1,237 @@
+// Bun Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Output Formatting Snapshots Status Messages should format success messages consistently: success-messages 1`] = `
+[
+  "✓ Operation completed successfully",
+  "✓ File saved to /path/to/file.json",
+  "✓ Configuration updated",
+]
+`;
+
+exports[`Output Formatting Snapshots Status Messages should format error messages consistently: error-messages 1`] = `
+[
+  "✗ Failed to connect to API",
+  "✗ Invalid configuration value",
+  "✗ File not found: /path/to/missing.json",
+]
+`;
+
+exports[`Output Formatting Snapshots Status Messages should format warning messages consistently: warning-messages 1`] = `
+[
+  "⚠ API token not configured",
+  "⚠ Using default configuration",
+  "⚠ Feature deprecated, please use new syntax",
+]
+`;
+
+exports[`Output Formatting Snapshots Status Messages should format info messages consistently: info-messages 1`] = `
+[
+  "ℹ Loading configuration from ~/.arden/settings.json",
+  "ℹ Using host: https://ardenstats.com",
+  "ℹ Processing 5 events",
+]
+`;
+
+exports[`Output Formatting Snapshots Status Messages should format plain messages consistently: plain-messages 1`] = `
+[
+  "Welcome to Arden CLI",
+  "Available commands: config, events, agents, users",
+  "For help, run: arden --help",
+]
+`;
+
+exports[`Output Formatting Snapshots Progress Output should format progress indicators consistently: progress-output 1`] = `
+[
+  "Sending event...",
+  
+"
+"
+,
+  
+"
+✓ Event sent successfully
+"
+,
+  "Uploading file...",
+  
+"
+"
+,
+  
+"
+✗ Upload failed
+"
+,
+]
+`;
+
+exports[`Output Formatting Snapshots JSON Output should format simple objects consistently: json-simple-object 1`] = `
+[
+  
+"{
+  "id": "evt_123",
+  "type": "test_event",
+  "status": "success"
+}"
+,
+]
+`;
+
+exports[`Output Formatting Snapshots JSON Output should format nested objects consistently: json-nested-object 1`] = `
+[
+  
+"{
+  "event": {
+    "id": "evt_123",
+    "type": "user_action",
+    "timestamp": "2024-01-01T00:00:00Z",
+    "data": {
+      "user_id": "user_456",
+      "action": "login",
+      "metadata": {
+        "ip": "192.168.1.1",
+        "user_agent": "Mozilla/5.0"
+      }
+    }
+  }
+}"
+,
+]
+`;
+
+exports[`Output Formatting Snapshots JSON Output should format arrays consistently: json-array-data 1`] = `
+[
+  
+"[
+  {
+    "id": "agent_1",
+    "name": "Test Agent 1",
+    "status": "active"
+  },
+  {
+    "id": "agent_2",
+    "name": "Test Agent 2",
+    "status": "inactive"
+  },
+  {
+    "id": "agent_3",
+    "name": "Test Agent 3",
+    "status": "active"
+  }
+]"
+,
+]
+`;
+
+exports[`Output Formatting Snapshots JSON Output should sanitize sensitive data in JSON output: json-sanitized-data 1`] = `
+[
+  
+"{
+  "user_id": "user_123",
+  "api_token": "secr***********c123",
+  "email": "user@example.com",
+  "password": "secr*******word",
+  "data": {
+    "api_key": "key_**z789",
+    "normal_field": "normal_value"
+  }
+}"
+,
+]
+`;
+
+exports[`Output Formatting Snapshots Table Output should format simple table data consistently: table-simple-data 1`] = `[]`;
+
+exports[`Output Formatting Snapshots Table Output should handle empty table data consistently: table-empty-data 1`] = `
+[
+  "ℹ No data to display",
+]
+`;
+
+exports[`Output Formatting Snapshots Table Output should format leaderboard data consistently: table-leaderboard-data 1`] = `[]`;
+
+exports[`Output Formatting Snapshots Table Output should format mixed data types consistently: table-mixed-data 1`] = `[]`;
+
+exports[`Output Formatting Snapshots Color and Terminal Formatting should maintain consistent symbol usage: status-symbols 1`] = `
+[
+  "✓ Success with checkmark",
+  "✗ Error with X mark",
+  "⚠ Warning with triangle",
+  "ℹ Info with i symbol",
+]
+`;
+
+exports[`Output Formatting Snapshots Color and Terminal Formatting should handle different terminal widths gracefully: table-long-content 1`] = `[]`;
+
+exports[`Output Formatting Snapshots Color and Terminal Formatting should format special characters correctly: json-special-characters 1`] = `
+[
+  
+"{
+  "unicode": "Unicode: ñáéíóú 中文 🚀",
+  "quotes": "Quotes: \"double\" 'single'",
+  "backslashes": "Path: C:\\Windows\\System32",
+  "newlines": "Multi\nline\ntext",
+  "tabs": "Tabbed\tcontent"
+}"
+,
+]
+`;
+
+exports[`Output Formatting Snapshots Error Output Formatting should format validation errors consistently: validation-errors 1`] = `
+[
+  "✗ Event type is required",
+  "✗ Agent ID must be a valid UUID",
+  "✗ Data must be valid JSON",
+  "✗ Timestamp must be in ISO 8601 format",
+]
+`;
+
+exports[`Output Formatting Snapshots Error Output Formatting should format API errors consistently: api-errors 1`] = `
+[
+  "✗ HTTP 400: Bad Request - Invalid event data",
+  "✗ HTTP 401: Unauthorized - Invalid API token",
+  "✗ HTTP 403: Forbidden - Insufficient permissions",
+  "✗ HTTP 404: Not Found - Agent not found",
+  "✗ HTTP 500: Internal Server Error - Please try again later",
+]
+`;
+
+exports[`Output Formatting Snapshots Configuration Output should format configuration display consistently: config-display 1`] = `
+[
+  "Current configuration:",
+  "  api_token = [SET]",
+  "  user_id = user_123",
+  "  host = https://ardenstats.com",
+  "  log_level = info",
+  "  default_format = table",
+  "  interactive = true",
+]
+`;
+
+exports[`Output Formatting Snapshots Configuration Output should format configuration updates consistently: config-updates 1`] = `
+[
+  "✓ Set api_token = [SET]",
+  "✓ Set user_id = user_123",
+  "✓ Set host = https://ardenstats.com",
+  "✓ Unset log_level",
+]
+`;
+
+exports[`Output Formatting Snapshots Multi-format Output Consistency should maintain consistency across output formats for same data: multi-format-consistency 1`] = `
+[
+  
+"[
+  {
+    "id": "item_1",
+    "value": 100,
+    "status": "active"
+  },
+  {
+    "id": "item_2",
+    "value": 200,
+    "status": "inactive"
+  }
+]"
+,
+]
+`;

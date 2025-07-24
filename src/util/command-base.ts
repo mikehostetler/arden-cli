@@ -1,18 +1,21 @@
 import { Command, Option } from 'commander';
-import { getSettingValue, getHost, getApiToken, getUserId } from './settings';
-import { logger, output, withErrorHandling } from './output';
+import { z } from 'zod';
+
+import { createLogger, output } from './output';
+import { getApiToken, getHost, getLogLevel, getSettingValue, getUserId } from './settings';
+import { ValidationError } from './validation';
 
 /**
  * Common options that should be available on all commands
  */
 export interface GlobalOptions {
-  host?: string;
-  token?: string;
-  user?: string;
-  format?: 'json' | 'table' | 'yaml';
-  verbose?: boolean;
-  quiet?: boolean;
-  yes?: boolean;
+  host?: string | undefined;
+  token?: string | undefined;
+  user?: string | undefined;
+  format?: 'json' | 'table' | 'yaml' | undefined;
+  verbose?: boolean | undefined;
+  quiet?: boolean | undefined;
+  yes?: boolean | undefined;
 }
 
 /**
@@ -24,7 +27,11 @@ export function createCommand(name: string, description: string): Command {
     .addOption(new Option('-H, --host <url>', 'API host URL').env('ARDEN_HOST'))
     .addOption(new Option('-t, --token <token>', 'API authentication token').env('ARDEN_API_TOKEN'))
     .addOption(new Option('-u, --user <user-id>', 'User ID').env('ARDEN_USER_ID'))
-    .addOption(new Option('-f, --format <format>', 'Output format').choices(['json', 'table', 'yaml']).default('table'))
+    .addOption(
+      new Option('-f, --format <format>', 'Output format')
+        .choices(['json', 'table', 'yaml'])
+        .default('table')
+    )
     .addOption(new Option('-v, --verbose', 'Enable verbose logging'))
     .addOption(new Option('-q, --quiet', 'Suppress non-error output'))
     .addOption(new Option('-y, --yes', 'Assume yes for prompts'));
@@ -46,26 +53,92 @@ export function getResolvedConfig(options: GlobalOptions) {
 }
 
 /**
- * Standard command action wrapper with error handling and config resolution
+ * Error types with specific exit codes for Phase 2 error standardization
+ */
+export enum ErrorType {
+  GENERIC = 1,
+  CONFIG = 2,
+  NETWORK = 3,
+}
+
+/**
+ * Enhanced command action wrapper with automatic async error capture,
+ * config injection, validation, and specific exit codes for different error types.
+ *
+ * This is the Phase 5 implementation with integrated validation infrastructure.
  */
 export function createCommandAction<T extends GlobalOptions>(
-  handler: (options: T, config: ReturnType<typeof getResolvedConfig>) => Promise<void>
+  handler: (options: T, config: ReturnType<typeof getResolvedConfig>) => Promise<void>,
+  validationSchema?: z.ZodSchema<T>
 ) {
-  return withErrorHandling(async (options: T) => {
-    const config = getResolvedConfig(options);
-    
-    // Set log level based on verbose/quiet flags
-    if (options.verbose) {
-      logger.level = 'debug';
-    } else if (options.quiet) {
-      logger.level = 'error';
+  return async (options: T) => {
+    try {
+      // Validate command options if schema provided
+      if (validationSchema) {
+        const validatedOptions = validationSchema.parse(options);
+        options = validatedOptions;
+      }
+
+      const config = getResolvedConfig(options);
+
+      // Create logger with appropriate level based on verbose/quiet flags
+      let logLevel = getLogLevel(); // Use settings-based default
+      if (options.verbose) {
+        logLevel = 'debug';
+      } else if (options.quiet) {
+        logLevel = 'error';
+      }
+      
+      const logger = createLogger(logLevel);
+      
+      // Only log debug info if explicitly verbose
+      if (options.verbose) {
+        logger.debug('Command options:', options);
+        logger.debug('Resolved config:', config);
+      }
+
+      await handler(options, config);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+
+      // Determine error type and exit code based on error content
+      let exitCode = ErrorType.GENERIC;
+
+      // Validation errors are configuration-related
+      if (error instanceof ValidationError || error instanceof z.ZodError) {
+        exitCode = ErrorType.CONFIG;
+      }
+      // Configuration-related errors
+      else if (
+        message.includes('config') ||
+        message.includes('token') ||
+        message.includes('auth') ||
+        message.includes('API token') ||
+        message.includes('authentication') ||
+        message.includes('settings')
+      ) {
+        exitCode = ErrorType.CONFIG;
+      }
+      // Network-related errors
+      else if (
+        message.includes('network') ||
+        message.includes('fetch') ||
+        message.includes('request') ||
+        message.includes('connection') ||
+        message.includes('API request') ||
+        message.includes('response') ||
+        message.includes('timeout') ||
+        message.includes('ECONNREFUSED') ||
+        message.includes('ENOTFOUND')
+      ) {
+        exitCode = ErrorType.NETWORK;
+      }
+
+      logger.error(`Command failed: ${message}`);
+      output.error(message);
+      process.exit(exitCode);
     }
-    
-    logger.debug('Command options:', options);
-    logger.debug('Resolved config:', config);
-    
-    await handler(options, config);
-  });
+  };
 }
 
 /**
@@ -73,60 +146,18 @@ export function createCommandAction<T extends GlobalOptions>(
  */
 export function requireAuth(config: ReturnType<typeof getResolvedConfig>): void {
   if (!config.token) {
-    output.error('API token required. Use --token flag, set ARDEN_API_TOKEN environment variable, or run "arden config --set api_token=<token>"');
+    output.error(
+      'API token required. Use --token flag, set ARDEN_API_TOKEN environment variable, or edit ~/.arden/settings.json'
+    );
     process.exit(1);
   }
 }
 
 export function requireHost(config: ReturnType<typeof getResolvedConfig>): void {
   if (!config.host) {
-    output.error('Host required. Use --host flag, set ARDEN_HOST environment variable, or run "arden config --set host=<url>"');
+    output.error(
+      'Host required. Use --host flag, set ARDEN_HOST environment variable, or edit ~/.arden/settings.json'
+    );
     process.exit(1);
   }
-}
-
-/**
- * Common API request helper with authentication
- */
-export async function apiRequest(
-  url: string,
-  config: ReturnType<typeof getResolvedConfig>,
-  options: RequestInit = {}
-): Promise<Response> {
-  requireAuth(config);
-  requireHost(config);
-  
-  const fullUrl = url.startsWith('http') ? url : `${config.host}${url}`;
-  
-  const headers = {
-    'Content-Type': 'application/json',
-    'x-api-key': config.token!,
-    ...options.headers,
-  };
-  
-  logger.debug(`API request: ${options.method || 'GET'} ${fullUrl}`);
-  
-  const response = await fetch(fullUrl, {
-    ...options,
-    headers,
-  });
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`API request failed (${response.status}): ${errorText}`);
-  }
-  
-  return response;
-}
-
-/**
- * Standard API request with JSON response parsing
- */
-export async function apiRequestJson<T = any>(
-  url: string,
-  config: ReturnType<typeof getResolvedConfig>,
-  options: RequestInit = {}
-): Promise<T> {
-  const response = await apiRequest(url, config, options);
-  return response.json();
 }

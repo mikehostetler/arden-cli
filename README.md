@@ -220,17 +220,58 @@ Example event:
 
 ## Configuration
 
-The CLI uses environment variables for configuration:
+The CLI supports configuration through multiple methods with the following priority:
+1. Command-line options (highest priority)
+2. Environment variables
+3. Settings file (`~/.arden/settings.json`)
+4. Default values (lowest priority)
+
+### Environment Variables
+
+All Arden-specific environment variables use the `ARDEN_*` prefix:
 
 ```bash
-# Optional - for dedicated user stats tracking
-export ARDEN_API_TOKEN="your-bearer-token"
+# Core settings
+export ARDEN_API_TOKEN="your-bearer-token"     # API authentication token
+export ARDEN_USER_ID="your-user-id"            # User ID for tracking
+export ARDEN_HOST="https://ardenstats.com"     # API host URL
 
-# Optional configuration
-export HOST="https://ardenstats.com"
-export LOG_LEVEL="info"  # debug, info, warn, error
-export NODE_ENV="development"
+# CLI preferences  
+export ARDEN_LOG_LEVEL="info"                  # debug, info, warn, error
+export ARDEN_DEFAULT_FORMAT="table"            # json, table, yaml
+export ARDEN_INTERACTIVE="true"                # true, false
+
+# System variables (optional)
+export NODE_ENV="development"                   # Node.js environment
 ```
+
+### Settings File
+
+Use the `arden config` command to view current settings and get configuration guidance:
+
+```bash
+# View current settings and configuration help
+arden config
+```
+
+To modify configuration, edit the settings file directly at `~/.arden/settings.json`:
+
+```json
+{
+  "api_token": "your-token",
+  "user_id": "your-user-id",
+  "host": "https://ardenstats.com",
+  "default_format": "table",
+  "log_level": "info",
+  "interactive": true
+}
+```
+
+### Legacy Environment Variables
+
+⚠️ **Deprecated**: The following legacy environment variables are still supported but will show deprecation warnings:
+- `HOST` → Use `ARDEN_HOST` instead
+- `LOG_LEVEL` → Use `ARDEN_LOG_LEVEL` instead
 
 You can also create a `.env` file in your project root with these variables.
 
@@ -298,36 +339,62 @@ echo '{"action": "autocomplete", "language": "typescript"}' | \
 
 ## Development
 
-### Building
+### Quick Start for Contributors
 
 ```bash
-# Install dependencies
-npm install
+# Clone and setup
+git clone https://github.com/mikehostetler/arden-cli.git
+cd arden-cli
+bun install
 
-# Build the project
-npm run build
+# Start development with hot reload
+bun run dev
 
-# Run in development mode
-npm run dev
-
-# Clean build artifacts
-npm run clean
+# Or use the traditional Bun mode
+bun run dev:bun
 ```
+
+### Building and Quality
+
+```bash
+# Build the project
+bun run build
+
+# Run all quality checks (format, lint, test)
+bun run quality
+
+# Individual commands
+bun run format        # Format code with Prettier
+bun run lint          # Check code with ESLint
+bun run lint:fix      # Auto-fix linting issues
+bun run test          # Run test suite
+```
+
+### VS Code Development
+
+This project includes VS Code configuration for optimal development experience:
+
+- **Auto-formatting** on save with Prettier
+- **ESLint integration** with auto-fix on save
+- **Debug configurations** for CLI and tests
+- **Task definitions** for build, test, lint, format
+- **Extension recommendations** for best tooling
 
 ### Testing
 
 ```bash
-# Test with agents list (should show A-CLAUDECODE if events were sent)
+# Run test suite
+bun run test
+
+# Run specific test types
+bun run test:unit         # Unit tests only
+bun run test:integration  # Integration tests
+bun run test:watch        # Watch mode for development
+
+# Test CLI functionality
 bun run dev agents list --limit 5
-
-# Test agents leaderboard (A-CLAUDECODE should appear after Claude sessions)
 bun run dev agents leaderboard --period today --mode simulated
-
-# Test users leaderboard
-bun run dev users leaderboard --mode simulated
-
-# Test Claude hook command (for debugging)
-echo '{"session_id": "test123", "hook_event_name": "Stop"}' | bun run dev claude hook Stop --dry-run
+echo '{"session_id": "test123"}' | bun run dev claude hook Stop --dry-run
 ```
 
 ## Advanced Features
@@ -378,11 +445,25 @@ This CLI implements the **Agent Telemetry Protocol v1**. For detailed specificat
 
 ## Contributing
 
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+
+### Quick Contribution Steps
+
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+3. Follow our [development guidelines](CONTRIBUTING.md)
+4. Run quality checks (`bun run quality`)
+5. Commit your changes (`git commit -m 'Add some amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
+
+### Code Style
+
+This project uses automated code formatting and linting:
+- **Prettier** for consistent code formatting
+- **ESLint** for code quality and import organization
+- **TypeScript** strict mode for type safety
+- **VS Code** integration for development efficiency
 
 ## License
 

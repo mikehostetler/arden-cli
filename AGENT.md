@@ -20,13 +20,20 @@ Arden CLI is a tool for sending agent telemetry and logs to the Arden Stats API.
 - **Settings File**: Uses unified `~/.arden/settings.json` for all configuration
 - **Priority Order**: CLI options → environment variables → settings file → defaults
 - **Core Module**: `src/util/settings.ts` handles all configuration operations
-- **Commands**: Use `arden config --set key=value` and `arden config --list`
+- **Commands**: Use `arden config` to view current settings and get configuration guidance
 - **Output**: Use `output.success/info/error` from `src/util/output.ts` for user messages
 
 ## Global Options
 - **`-H, --host <url>`**: API host URL (available on all commands)
 - **Commands access global options**: Use `command.parent?.getOptionValue('host')` in action functions
 - **No option overrides**: Individual commands should NOT redefine global options
+
+## Sync State Tracking
+- **Settings Integration**: Sync state stored in `~/.arden/settings.json` under `claude_sync` key
+- **File Tracking**: Records file path, checksum, last_modified, and events_processed for each synced file
+- **Change Detection**: Uses SHA-256 checksums to detect file changes since last sync
+- **Incremental Sync**: Skips files that haven't changed since last sync (use `--force` to override)
+- **State Functions**: Use `isFileSynced()`, `recordFileSynced()`, and sync state utilities from `../util/settings`
 
 ## Code Style
 - **TypeScript**: Strict mode enabled with comprehensive type checking

@@ -1,43 +1,41 @@
-import { Command } from "commander";
-import { claudeCommand } from "./commands/claude";
-import { eventsCommand } from "./commands/events";
-import { agentsCommand } from "./commands/agents";
-import { usersCommand } from "./commands/users";
-import { configCommand } from "./commands/config";
-import { setupCommand } from "./commands/setup";
-import { authCommand } from "./commands/auth";
-import logger from "./util/logger";
-import env from "./util/env";
-import { readFileSync } from "fs";
-import { join } from "path";
+import { Command } from 'commander';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
-let version = "unknown";
+import { ampCommand } from './commands/amp';
+import { claudeCommand } from './commands/claude';
+import { configCommand } from './commands/config';
+import { eventCommand } from './commands/events';
+import { initCommand } from './commands/setup';
+import logger from './util/logger';
+import { getHost } from './util/settings';
+
+let version = 'unknown';
 try {
-  const pkgPath = join(__dirname, "..", "package.json");
-  const pkgJson = JSON.parse(readFileSync(pkgPath, "utf-8"));
+  const pkgPath = join(__dirname, '..', 'package.json');
+  const pkgJson = JSON.parse(readFileSync(pkgPath, 'utf-8'));
   version = pkgJson.version || version;
-} catch (e) {
-  logger.warn("Could not read version from package.json");
+} catch {
+  logger.warn('Could not read version from package.json');
 }
 
 const program = new Command();
 
 program
-  .name("arden")
-  .description("Arden CLI tool")
+  .name('arden')
+  .description('Arden CLI tool')
   .version(version)
-  .option('-H, --host <url>', 'API host URL', env.HOST);
+  .option('-H, --host <url>', 'API host URL', getHost())
+  .option('--insecure', 'Allow connections to untrusted hosts (development only)', false);
 
-program.addCommand(setupCommand);
-program.addCommand(authCommand);
+program.addCommand(initCommand);
+program.addCommand(ampCommand);
 program.addCommand(claudeCommand);
-program.addCommand(eventsCommand);
-program.addCommand(agentsCommand);
-program.addCommand(usersCommand);
+program.addCommand(eventCommand);
 program.addCommand(configCommand);
 
 // CLI parsing with error handling
-program.parseAsync(process.argv).catch((error) => {
+program.parseAsync(process.argv).catch(error => {
   logger.error(`[CLI Error] ${error.message}`);
   process.exit(1);
 });

@@ -1,0 +1,283 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    name: Test on ${{ matrix.os }} with Node ${{ matrix.node-version }}
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node-version: [18, 20, 22]
+        include:
+          # Test specific combinations for comprehensive coverage
+          - os: ubuntu-latest
+            node-version: 18
+            run-integration: true
+          - os: windows-latest  
+            node-version: 20
+            run-integration: true
+      fail-fast: false
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+      
+      - name: Setup Bun (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+      
+      - name: Setup Bun (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          irm bun.sh/install.ps1 | iex
+          echo "$env:USERPROFILE\.bun\bin" >> $env:GITHUB_PATH
+        shell: powershell
+      
+      - name: Install dependencies
+        run: bun install
+      
+      - name: Lint code
+        run: bun run lint
+      
+      - name: Build project
+        run: bun run build
+      
+      - name: Verify build artifacts
+        shell: bash
+        run: |
+          if [ ! -f "dist/index.js" ]; then
+            echo "Build artifact dist/index.js not found"
+            exit 1
+          fi
+          echo "Build artifacts verified"
+      
+      - name: Run unit tests
+        run: bun test --coverage
+      
+      - name: Run integration tests
+        if: matrix.run-integration
+        run: bun run test:integration
+        env:
+          NODE_ENV: test
+      
+      - name: Test CLI executable (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          chmod +x dist/index.js
+          ./dist/index.js --help
+          ./dist/index.js --version
+        shell: bash
+      
+      - name: Test CLI executable (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          node dist/index.js --help
+          node dist/index.js --version
+        shell: cmd
+      
+      - name: Upload coverage reports
+        if: matrix.os == 'ubuntu-latest' && matrix.node-version == '20'
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/lcov.info
+          fail_ci_if_error: false
+      
+      - name: Archive test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.os }}-node${{ matrix.node-version }}
+          path: |
+            coverage/
+            test-results/
+          retention-days: 7
+
+  lint-and-format:
+    name: Lint and Format Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+      
+      - name: Install dependencies
+        run: bun install
+      
+      - name: Check code formatting
+        run: |
+          # Run ESLint with fix to see if any changes are needed
+          bun run lint:fix
+          # Check if any files were modified
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Code formatting issues found. Please run 'bun run lint:fix'"
+            git diff
+            exit 1
+          fi
+          echo "Code formatting is correct"
+      
+      - name: Run ESLint
+        run: bun run lint
+
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+      
+      - name: Install dependencies
+        run: bun install
+      
+      - name: Run security audit
+        run: |
+          # Run npm audit through bun
+          bun audit --audit-level moderate
+      
+      - name: Check for environment variable leaks
+        run: bun run env-audit
+
+  build-and-package:
+    name: Build and Package
+    runs-on: ubuntu-latest
+    needs: [test, lint-and-format]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+      
+      - name: Install dependencies
+        run: bun install
+      
+      - name: Build project
+        run: bun run build
+      
+      - name: Package for distribution
+        run: |
+          # Create package for npm publishing
+          npm pack
+      
+      - name: Test package contents
+        run: |
+          # Extract and verify package contents
+          tar -tzf arden-*.tgz | head -20
+          echo "Package created successfully"
+      
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-package
+          path: arden-*.tgz
+          retention-days: 30
+
+  compatibility:
+    name: Compatibility Test
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            test-script: |
+              ./dist/index.js config --list || true
+              ./dist/index.js --help
+          - os: windows-latest  
+            test-script: |
+              node dist/index.js config --list || echo "Expected failure"
+              node dist/index.js --help
+          - os: macos-latest
+            test-script: |
+              ./dist/index.js config --list || true  
+              ./dist/index.js --help
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+      
+      - name: Install dependencies
+        run: bun install
+      
+      - name: Build project
+        run: bun run build
+      
+      - name: Make executable (Unix)
+        if: matrix.os != 'windows-latest'
+        run: chmod +x dist/index.js
+      
+      - name: Test CLI compatibility
+        shell: bash
+        run: ${{ matrix.test-script }}
+
+  performance:
+    name: Performance Test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+      
+      - name: Install dependencies
+        run: bun install
+      
+      - name: Build project
+        run: bun run build
+      
+      - name: Test CLI startup time
+        run: |
+          echo "Testing CLI startup performance..."
+          time ./dist/index.js --help > /dev/null
+          echo "Startup time test completed"
+      
+      - name: Test bundle size
+        run: |
+          echo "Checking bundle size..."
+          ls -lh dist/
+          SIZE=$(stat -f%z dist/index.js 2>/dev/null || stat -c%s dist/index.js)
+          echo "Bundle size: $SIZE bytes"
+          # Fail if bundle is larger than 5MB (reasonable for CLI)
+          if [ $SIZE -gt 5242880 ]; then
+            echo "Bundle size too large: $SIZE bytes"
+            exit 1
+          fi
+          echo "Bundle size acceptable"

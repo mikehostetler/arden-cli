@@ -9,14 +9,25 @@
   },
   "scripts": {
     "build": "tsup",
-    "dev": "bun src/index.ts",
+    "build:watch": "tsup --watch",
+    "dev": "bunx tsx watch src/index.ts",
+    "dev:bun": "bun src/index.ts",
     "start": "node dist/index.js",
     "clean": "rm -rf dist",
     "test": "bun test",
     "test:watch": "bun test --watch",
     "test:coverage": "bun test --coverage",
+    "test:unit": "bun test src/",
+    "test:integration": "npm run build && bun test test/integration-simple.test.ts",
+    "test:snapshots": "bun test test/output-snapshots.test.ts",
+    "test:all": "npm run test:unit && npm run test:integration && npm run test:snapshots",
+    "lint": "eslint src/ test/ scripts/",
+    "lint:fix": "eslint src/ test/ scripts/ --fix",
+    "format": "prettier --write src/ test/ scripts/",
+    "format:check": "prettier --check src/ test/ scripts/",
+    "quality": "npm run format:check && npm run lint && npm run test",
     "prepublishOnly": "npm run clean && npm run build",
-    "test:integration": "npm run build && bun test/integration.ts"
+    "env-audit": "bun scripts/env-audit.ts"
   },
   "tsup": {
     "entry": [
@@ -29,7 +40,7 @@
     "splitting": false,
     "sourcemap": true,
     "clean": true,
-    "minify": true,
+    "minify": false,
     "outDir": "dist",
     "target": "node20",
     "platform": "node",
@@ -40,7 +51,8 @@
       "commander",
       "chalk",
       "pino",
-      "pino-pretty"
+      "pino-pretty",
+      "inquirer"
     ],
     "external": [
       "fs",
@@ -70,17 +82,32 @@
   },
   "homepage": "https://ardenstats.com",
   "devDependencies": {
+    "@types/inquirer": "9.0.8",
     "@types/node": "^22.0.0",
+    "@types/p-map": "^2.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.37.0",
+    "@typescript-eslint/parser": "^8.37.0",
+    "bun-types": "^1.2.19",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-prettier": "^5.5.3",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
+    "execa": "^9.0.2",
+    "msw": "^2.3.4",
+    "prettier": "^3.6.2",
     "tsup": "^8.0.2",
+    "tsx": "^4.20.3",
     "typescript": "^5.0.0"
   },
   "dependencies": {
     "ccusage": "^15.5.0",
     "commander": "^12.1.0",
     "dotenv": "^16.4.5",
+    "inquirer": "10.2.2",
     "ky": "^1.8.1",
-    "pino": "^9.3.1",
-    "pino-pretty": "^11.2.1",
+    "p-map": "^7.0.3",
+    "signale": "^1.4.0",
     "znv": "^0.4.0",
     "zod": "^4.0.0"
   },

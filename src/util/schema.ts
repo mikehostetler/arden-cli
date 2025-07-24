@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { getCurrentTimestamp } from './time';
+
 // Agent ID regex: Case-insensitive letters, numbers, and hyphens (matches backend validation)
 const agentRegex = /^[A-Z0-9-]+$/i;
 
@@ -26,38 +28,38 @@ const jsonObjectValidator = (obj: Record<string, string | number>) => {
   }
 };
 
-export const EventSchema = z.object({
-  agent: z.string().regex(agentRegex, 'Invalid agent ID format'),
-  user: z.string().regex(ulidRegex, 'Invalid ULID format').optional(),
-  time: z.number().int().nonnegative(),
-  bid: z.number().int().nonnegative(),
-  mult: z.number().int().nonnegative(),
-  data: z.union([
-    z.record(z.string(), z.union([z.string(), z.number()]))
-      .refine(jsonObjectValidator, 'Encoded JSON data exceeds 1024 bytes'),
-    z.string().refine(base64Validator, 'Invalid base64 or decoded data exceeds 1024 bytes')
-  ])
-}).strict();
+export const EventSchema = z
+  .object({
+    agent: z.string().regex(agentRegex, 'Invalid agent ID format'),
+    user: z.string().regex(ulidRegex, 'Invalid ULID format').optional(),
+    time: z.number().int().nonnegative(),
+    bid: z.number().int().nonnegative(),
+    mult: z.number().int().nonnegative(),
+    data: z.union([
+      z
+        .record(z.string(), z.any()) // Allow any value type for flexibility
+        .refine(jsonObjectValidator, 'Encoded JSON data exceeds 1024 bytes'),
+      z.string().refine(base64Validator, 'Invalid base64 or decoded data exceeds 1024 bytes'),
+    ]),
+  })
+  .strict();
 
 export type TelemetryEvent = z.infer<typeof EventSchema>;
 
-export function validateEvent(event: any): TelemetryEvent {
+export function validateEvent(event: unknown): TelemetryEvent {
   return EventSchema.parse(event);
 }
 
-export function validateEvents(events: any[]): TelemetryEvent[] {
+export function validateEvents(events: unknown[]): TelemetryEvent[] {
   return events.map((event, index) => {
     try {
       return validateEvent(event);
     } catch (error) {
-      throw new Error(`Event at index ${index} is invalid: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Event at index ${index} is invalid: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   });
-}
-
-// Helper to normalize agent ID (remove A- prefix for internal use)
-export function normalizeAgentId(agentId: string): string {
-  return agentId.replace(/^[aA]-/, '');
 }
 
 // Helper to build event with defaults
@@ -65,9 +67,9 @@ export function buildEvent(partial: Partial<TelemetryEvent> & { agent: string })
   return {
     agent: partial.agent,
     user: partial.user,
-    time: partial.time ?? Date.now(),
+    time: partial.time ?? getCurrentTimestamp(),
     bid: partial.bid ?? 0,
     mult: partial.mult ?? 0,
-    data: partial.data ?? {}
+    data: partial.data ?? {},
   };
 }

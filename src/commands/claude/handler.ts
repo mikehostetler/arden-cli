@@ -1,8 +1,11 @@
-import logger from "../../util/logger";
-import { sendTelemetry } from "../../util/client";
-import { ClaudeHook } from "./hooks";
-import { AgentIds } from "../../agents";
-import { output } from "../../util/output";
+// Claude Code agent ID constant
+import { sendTelemetry } from '../../util/client';
+import logger from '../../util/logger';
+import { output } from '../../util/output';
+import { getCurrentDateISO } from '../../util/time';
+import { ClaudeHook } from './hooks';
+
+const CLAUDE_CODE_AGENT_ID = 'A-CLAUDECODE';
 
 export interface ClaudeHookOptions {
   dryRun: boolean;
@@ -10,67 +13,85 @@ export interface ClaudeHookOptions {
   host?: string;
 }
 
-export async function handleClaudeHook(
-  hook: ClaudeHook,
-  opts: ClaudeHookOptions
-): Promise<void> {
+export async function handleClaudeHook(hook: ClaudeHook, opts: ClaudeHookOptions): Promise<void> {
   try {
     // Read JSON payload from stdin
     const stdinData = await readStdin();
+
     let payload: unknown;
 
     try {
       payload = JSON.parse(stdinData);
     } catch (e) {
-      logger.error(`Invalid JSON on stdin for hook ${hook}: ${e}`);
+      // Invalid JSON - exit with code 2 for blocking error
+      console.error(`Invalid JSON received for hook ${hook}`);
       process.exit(2);
     }
 
+    // Remove sensitive data from payload
+    const sanitizedPayload = { ...payload };
+    delete sanitizedPayload.cwd;
+    delete sanitizedPayload.transcript_path;
+
     // Enrich the payload with Arden metadata
     const enriched = {
-      provider: AgentIds.CLAUDE_CODE,
+      provider: CLAUDE_CODE_AGENT_ID,
       hook,
-      timestamp: new Date().toISOString(),
-      payload,
+      timestamp: getCurrentDateISO(),
+      payload: sanitizedPayload,
     };
 
-    // Print enriched payload if requested
+    // Print enriched payload if requested (for debugging only)
     if (opts.print) {
       output.json(enriched);
+      return;
     }
 
     // Skip API call in dry-run mode
     if (opts.dryRun) {
-      logger.info(`[DRY RUN] Would send telemetry for hook: ${hook}`);
+      console.error(`[DRY RUN] Would send telemetry for hook: ${hook}`);
       return;
     }
 
-    // Send telemetry to Arden Stats API
-    await sendTelemetry(`claude.${hook}`, enriched, opts.host);
-    logger.debug(`Successfully sent telemetry for hook: ${hook}`);
+    // Send telemetry to Arden Stats API silently
+    await sendTelemetry(`claude.${hook}`, enriched, opts.host, true);
+    
+    // Success - exit with code 0, no stdout output
+    process.exit(0);
   } catch (error) {
-    logger.error(
-      `Failed to handle Claude hook ${hook}: ${(error as Error).message}`
-    );
+    // Non-blocking error - output to stderr and exit with non-zero code
+    console.error(`Failed to handle Claude hook ${hook}: ${(error as Error).message}`);
     process.exit(1);
   }
 }
 
 function readStdin(): Promise<string> {
   return new Promise((resolve, reject) => {
-    let data = "";
+    let data = '';
+    let hasData = false;
 
-    process.stdin.setEncoding("utf8");
+    // Check if stdin is a TTY (interactive terminal)
+    if (process.stdin.isTTY) {
+      reject(new Error('This command is meant to be called by Claude Code with JSON data via stdin, not interactively.'));
+      return;
+    }
 
-    process.stdin.on("data", (chunk) => {
+    process.stdin.setEncoding('utf8');
+
+    process.stdin.on('data', chunk => {
+      hasData = true;
       data += chunk;
     });
 
-    process.stdin.on("end", () => {
+    process.stdin.on('end', () => {
+      if (!hasData || data.trim() === '') {
+        reject(new Error('No data received from stdin. This command expects JSON data from Claude Code.'));
+        return;
+      }
       resolve(data);
     });
 
-    process.stdin.on("error", (error) => {
+    process.stdin.on('error', error => {
       reject(error);
     });
   });
