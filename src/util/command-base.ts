@@ -88,9 +88,9 @@ export function createCommandAction<T extends GlobalOptions>(
       } else if (options.quiet) {
         logLevel = 'error';
       }
-      
+
       const logger = createLogger(logLevel);
-      
+
       // Only log debug info if explicitly verbose
       if (options.verbose) {
         logger.debug('Command options:', options);

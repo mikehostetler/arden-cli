@@ -1,6 +1,6 @@
 {
   "name": "arden",
-  "version": "0.8.2",
+  "version": "0.9.0",
   "description": "A CLI tool for ArdenStats.com",
   "main": "dist/index.js",
   "type": "commonjs",
@@ -85,6 +85,7 @@
     "@types/inquirer": "^9.0.8",
     "@types/node": "^24.1.0",
     "@types/p-map": "^2.0.0",
+    "@types/phoenix": "^1.6.6",
     "@typescript-eslint/eslint-plugin": "^8.37.0",
     "@typescript-eslint/parser": "^8.37.0",
     "bun-types": "^1.2.19",
@@ -101,7 +102,9 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@appsignal/javascript": "^1.6.0",
     "@types/cli-progress": "^3.11.6",
+    "@types/ws": "^8.18.1",
     "boxen": "^8.0.1",
     "ccusage": "^15.5.0",
     "chalk": "^5.4.1",
@@ -110,9 +113,12 @@
     "dotenv": "^16.4.5",
     "inquirer": "^12.8.2",
     "ky": "^1.8.1",
+    "open": "^10.2.0",
     "ora": "^8.2.0",
     "p-map": "^7.0.3",
+    "phoenix": "^1.7.21",
     "signale": "^1.4.0",
+    "ws": "^8.18.3",
     "znv": "^0.4.0",
     "zod": "^4.0.0"
   },

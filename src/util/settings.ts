@@ -2,14 +2,15 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
 import { z } from 'zod';
-import { 
-  getEnvApiToken, 
-  getEnvUserId, 
-  getEnvHost, 
-  getEnvLogLevel, 
-  getEnvDefaultFormat, 
-  getEnvInteractive 
-} from './env.js';
+
+import {
+  getEnvApiToken,
+  getEnvDefaultFormat,
+  getEnvHost,
+  getEnvInteractive,
+  getEnvLogLevel,
+  getEnvUserId,
+} from './env';
 
 // Zod schema for Claude sync state
 const ClaudeSyncStateSchema = z.object({
@@ -52,17 +53,20 @@ export const ArdenSettingsSchema = z.object({
   log_level: z.enum(['debug', 'info', 'warn', 'error']).optional(),
   default_format: z.enum(['json', 'table', 'yaml']).optional(),
   interactive: z.boolean().optional(),
+  telemetry_enabled: z.boolean().optional(),
 
   // Sync state tracking
   claude_sync: ClaudeSyncStateSchema.optional(),
   amp_sync: AmpSyncStateSchema.optional(),
-  
+
   // Update check cache
-  updateCheckCache: z.object({
-    lastChecked: z.number(),
-    latestVersion: z.string(),
-    skipVersion: z.string().optional(),
-  }).optional(),
+  updateCheckCache: z
+    .object({
+      lastChecked: z.number(),
+      latestVersion: z.string(),
+      skipVersion: z.string().optional(),
+    })
+    .optional(),
 });
 
 export type ArdenSettings = z.infer<typeof ArdenSettingsSchema>;
@@ -218,7 +222,7 @@ export function getUserId(cliUserId?: string): string | undefined {
 }
 
 export function getHost(cliHost?: string): string {
-  return getSettingValue('host', cliHost) || 'https://ardenstats.com';
+  return getSettingValue('host', cliHost) || getEnvHost() || 'https://ardenstats.com';
 }
 
 export function getLogLevel(cliLogLevel?: string): string {
@@ -387,4 +391,12 @@ export function recordAmpThreadSynced(
     last_sync: new Date().toISOString(),
     synced_threads: filteredThreads,
   });
+}
+
+/**
+ * Check if telemetry is enabled (default: true)
+ */
+export function isTelemetryEnabled(): boolean {
+  const settings = loadSettings();
+  return settings.telemetry_enabled !== false; // Default to enabled
 }

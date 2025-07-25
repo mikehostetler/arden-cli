@@ -13,6 +13,7 @@ import { AgentDetection, detectAmp, detectClaude } from '../util/detect';
 import { logger, output } from '../util/logging';
 import { ensureApiToken, getUserId, saveSettings, loadSettings } from '../util/settings';
 import { checkClaudeHooks, expandTilde } from './claude/init';
+import { deviceAuthFlow } from './auth/device';
 
 interface InitOptions extends GlobalOptions {
   yes?: boolean;
@@ -39,7 +40,6 @@ async function runInit(options: InitOptions, config: ReturnType<typeof getResolv
   await handleUserSetup(initOptions);
 
   // Agent detection
-  output.info('Detecting AI agents...');
   const claude = await detectClaude();
   const amp = await detectAmp();
 
@@ -55,20 +55,17 @@ async function runInit(options: InitOptions, config: ReturnType<typeof getResolv
 
   // Amp setup flow
   if (amp.present) {
-    output.info('Amp detected - built-in Arden support, no configuration needed');
     await handleAmpSync(initOptions);
   }
 
   // API token setup (legacy support)
-  output.info('Checking API token...');
   await ensureApiToken(initOptions);
 
   showSuccessMessage();
 }
 
 function showBanner() {
-  output.message('Welcome to Arden CLI Initialization!');
-  output.message('This will configure your system to track AI agent usage.\n');
+  output.message('Initializing Arden CLI...\n');
 }
 
 function checkNodeVersion() {
@@ -77,8 +74,6 @@ function checkNodeVersion() {
 
   if (majorVersion < 18) {
     output.warn(`Node.js ${version} detected. Node.js 18+ recommended.`);
-  } else {
-    output.message(`Node.js ${version} detected`);
   }
 }
 
@@ -90,82 +85,47 @@ async function handleUserSetup(options: InitOptions) {
     return;
   }
 
-  output.info('No user ID configured. Setting up Arden user account...');
-  output.message('To track your agent usage on ardenstats.com, you need a user ID.');
-  output.message('');
-  output.message('1. Visit: https://ardenstats.com/auth/register');
-  output.message('2. Sign up for an account (free)');
-  output.message('3. Find your user ID in your profile settings');
-  output.message('');
+  output.info('Authenticating...');
 
   if (options.yes) {
-    output.info('Skipping user ID setup (--yes mode). You can configure later with:');
-    output.info('  arden config set user_id <your-user-id>');
+    output.info('Skipping authentication (--yes mode). You can authenticate later with:');
+    output.info('  arden auth login');
     return;
   }
 
-  const { shouldSetup } = await inquirer.prompt([
-    {
-      type: 'confirm',
-      name: 'shouldSetup',
-      message: 'Do you want to configure your user ID now?',
-      default: false,
-    },
-  ]);
-  
-  if (!shouldSetup) {
-    output.info('Skipping user ID setup. You can configure later with:');
-    output.info('  arden config set user_id <your-user-id>');
-    return;
-  }
-
-  const { userId } = await inquirer.prompt([
-    {
-      type: 'input',
-      name: 'userId',
-      message: 'Enter your user ID (or press Enter to skip):',
-      validate: (input: string) => {
-        const trimmed = input.trim();
-        return trimmed.length > 0 || 'User ID cannot be empty (or press Enter to skip)';
-      },
-      filter: (input: string) => input.trim() || null,
-    },
-  ]);
-
-  if (userId) {
+  try {
+    const ulid = await deviceAuthFlow(options.host || 'https://ardenstats.com');
     const settings = loadSettings();
-    settings.user_id = userId;
+    settings.user_id = ulid;
     saveSettings(settings);
-    output.success(`User ID configured: ${userId}`);
+    output.success('Authenticated successfully');
+  } catch (error) {
+    output.error(`Authentication failed: ${(error as Error).message}`);
+    output.info('You can try again later with: arden auth login');
+    
+    // Don't fail the entire init process - continue with other setup
+    return;
   }
 }
 
 function showDetectionSummary({ claude, amp }: { claude: AgentDetection; amp: AgentDetection }) {
-  output.info('Detection Summary:');
-
   if (claude.present) {
     output.success(
-      `Claude Code found at ${claude.bin}${claude.version ? ` (${claude.version})` : ''}`
+      `Claude Code found${claude.version ? ` (${claude.version})` : ''}`
     );
-  } else {
-    output.error(`Claude Code not found in PATH`);
   }
 
   if (amp.present) {
-    output.success(`Amp found at ${amp.bin}${amp.version ? ` (${amp.version})` : ''}`);
-  } else {
-    output.error(`Amp not found in PATH`);
+    output.success(`Amp found`);
   }
 }
 
 async function handleClaudeSetup(_claude: AgentDetection, options: InitOptions) {
-  output.info('Configuring Claude Code...');
-
   const settingsPath = expandTilde('~/.claude/settings.json');
   const needsInstall = await checkClaudeHooks(settingsPath);
 
   if (!needsInstall) {
-    output.success('Arden hooks already installed in Claude settings');
+    output.success('Claude Code configured');
     return;
   }
 
@@ -352,21 +312,6 @@ async function handleAmpHistoryUpload(options: InitOptions) {
 }
 
 function showSuccessMessage() {
-  output.success('Initialization complete!');
-  output.message('\nArden is now configured to track your AI agent usage.');
-  output.message('Your agents will automatically send telemetry to ardenstats.com');
-  output.message('\nWhat was configured:');
-  const userId = getUserId();
-  if (userId) {
-    output.message(`• User ID: ${userId}`);
-  }
-  output.message('• Claude Code hooks installed (if present)');
-  output.message('• Historical logs synced to ardenstats.com');
-  output.message('\nNext steps:');
-  output.message('• Use Claude Code or Amp as normal');
-  output.message('• Visit https://ardenstats.com to view your usage analytics');
-  output.message("• Run 'arden --help' to see additional commands");
-  if (!userId) {
-    output.message("• Configure your user ID with 'arden config set user_id <your-user-id>'");
-  }
+  output.success('Setup complete!');
+  output.message('\nView your usage analytics at https://ardenstats.com');
 }

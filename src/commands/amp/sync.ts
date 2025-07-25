@@ -104,7 +104,7 @@ async function syncAmpThreads(options: AmpOptions): Promise<void> {
     barIncompleteChar: '\u2591',
     hideCursor: true,
   });
-  
+
   progressBar.start(threadsToSync.length, 0);
 
   let totalEvents = 0;

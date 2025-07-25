@@ -4,9 +4,9 @@ import { getEnvLogLevel } from './env.js';
 
 /**
  * Unified logging and output system for Arden CLI
- * 
+ *
  * Provides two main interfaces:
- * - logger: For diagnostic/debug logging 
+ * - logger: For diagnostic/debug logging
  * - output: For user-facing messages and data display
  */
 
@@ -25,14 +25,14 @@ const createSignaleConfig = (logLevel?: string) => ({
     },
     info: {
       badge: 'ℹ',
-      color: 'blue', 
+      color: 'blue',
       label: 'info',
       logLevel: 'info',
     },
     warn: {
       badge: '⚠',
       color: 'yellow',
-      label: 'warn', 
+      label: 'warn',
       logLevel: 'warn',
     },
     error: {

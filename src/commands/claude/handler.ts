@@ -54,7 +54,7 @@ export async function handleClaudeHook(hook: ClaudeHook, opts: ClaudeHookOptions
 
     // Send telemetry to Arden Stats API silently
     await sendTelemetry(`claude.${hook}`, enriched, opts.host, true);
-    
+
     // Success - exit with code 0, no stdout output
     process.exit(0);
   } catch (error) {
@@ -71,7 +71,11 @@ function readStdin(): Promise<string> {
 
     // Check if stdin is a TTY (interactive terminal)
     if (process.stdin.isTTY) {
-      reject(new Error('This command is meant to be called by Claude Code with JSON data via stdin, not interactively.'));
+      reject(
+        new Error(
+          'This command is meant to be called by Claude Code with JSON data via stdin, not interactively.'
+        )
+      );
       return;
     }
 
@@ -84,7 +88,9 @@ function readStdin(): Promise<string> {
 
     process.stdin.on('end', () => {
       if (!hasData || data.trim() === '') {
-        reject(new Error('No data received from stdin. This command expects JSON data from Claude Code.'));
+        reject(
+          new Error('No data received from stdin. This command expects JSON data from Claude Code.')
+        );
         return;
       }
       resolve(data);

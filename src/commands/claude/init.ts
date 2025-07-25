@@ -84,9 +84,7 @@ function buildHookCommand({ hook }: { hook: string }) {
  * Reads settings.json (creating skeleton if missing) and ensures all hooks are installed.
  * Returns the modified JSON and whether any changes were made.
  */
-async function ensureHooks(
-  file: string
-): Promise<{ json: ClaudeSettings; modified: boolean }> {
+async function ensureHooks(file: string): Promise<{ json: ClaudeSettings; modified: boolean }> {
   let json: ClaudeSettings = {};
 
   try {
@@ -127,8 +125,6 @@ async function ensureHooks(
 
   return { json, modified };
 }
-
-
 
 /**
  * Check if the cleaned hooks already contain our Arden command.

@@ -130,7 +130,7 @@ export class Client {
     const chunks = this.chunkEvents(validatedEvents, this.chunkSize);
 
     let progressBar: cliProgress.SingleBar | null = null;
-    
+
     if (this.showProgress && !this.silent && chunks.length > 1) {
       progressBar = new cliProgress.SingleBar({
         format: 'Uploading events |{bar}| {percentage}% | {value}/{total} chunks',
@@ -142,15 +142,19 @@ export class Client {
     }
 
     // Use p-map for controlled parallel processing
-    const results = await pMap(chunks, async (chunk, index) => {
-      const result = await this.sendChunk(chunk);
-      if (progressBar) {
-        progressBar.increment();
+    const results = await pMap(
+      chunks,
+      async (chunk, index) => {
+        const result = await this.sendChunk(chunk);
+        if (progressBar) {
+          progressBar.increment();
+        }
+        return result;
+      },
+      {
+        concurrency: this.maxConcurrency,
       }
-      return result;
-    }, {
-      concurrency: this.maxConcurrency,
-    });
+    );
 
     if (progressBar) {
       progressBar.stop();
@@ -304,7 +308,7 @@ export async function sendTelemetry(
     }
 
     await client.sendEvents([telemetryEvent]);
-    
+
     if (!silent && !showProgress) {
       logger.info(`[TELEMETRY] ${event} sent to ${host || env.HOST}`);
     }

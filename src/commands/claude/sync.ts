@@ -82,7 +82,7 @@ async function syncClaudeUsage(options: ClaudeOptions): Promise<void> {
   output.info(`Found ${jsonlFiles.length} Claude Code session files`);
 
   const limit = parseInt(options.limit, 10);
-  
+
   // Filter files that need syncing
   const filesToSync = [];
   let skippedFiles = 0;
@@ -111,7 +111,7 @@ async function syncClaudeUsage(options: ClaudeOptions): Promise<void> {
     barIncompleteChar: '\u2591',
     hideCursor: true,
   });
-  
+
   progressBar.start(filesToSync.length, 0);
 
   let totalEvents = 0;
@@ -166,7 +166,12 @@ export function extractProjectPath(jsonlFile: string): string {
   return dirName;
 }
 
-async function processJsonlFile(filePath: string, limit: number, force?: boolean, showProgress = false): Promise<number> {
+async function processJsonlFile(
+  filePath: string,
+  limit: number,
+  force?: boolean,
+  showProgress = false
+): Promise<number> {
   const content = fs.readFileSync(filePath, 'utf-8');
   const lines = content.trim().split('\n').slice(0, limit);
 
