@@ -1,4 +1,5 @@
 import { Command } from 'commander';
+
 import {
   createCommand,
   createCommandAction,
@@ -6,7 +7,7 @@ import {
   GlobalOptions,
 } from '../../util/command-base';
 import { output } from '../../util/logging';
-import { getUserId, saveSettings, loadSettings } from '../../util/settings';
+import { getUserId, loadSettings, saveSettings } from '../../util/settings';
 import { deviceAuthFlow } from './device';
 
 interface AuthOptions extends GlobalOptions {}

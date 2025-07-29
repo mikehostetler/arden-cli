@@ -11,9 +11,9 @@ import {
 } from '../util/command-base';
 import { AgentDetection, detectAmp, detectClaude } from '../util/detect';
 import { logger, output } from '../util/logging';
-import { ensureApiToken, getUserId, saveSettings, loadSettings } from '../util/settings';
-import { checkClaudeHooks, expandTilde } from './claude/init';
+import { ensureApiToken, getUserId, loadSettings, saveSettings } from '../util/settings';
 import { deviceAuthFlow } from './auth/device';
+import { checkClaudeHooks, expandTilde } from './claude/init';
 
 interface InitOptions extends GlobalOptions {
   yes?: boolean;
@@ -79,7 +79,7 @@ function checkNodeVersion() {
 
 async function handleUserSetup(options: InitOptions) {
   const currentUserId = getUserId();
-  
+
   if (currentUserId) {
     output.success(`User ID already configured: ${currentUserId}`);
     return;
@@ -102,7 +102,7 @@ async function handleUserSetup(options: InitOptions) {
   } catch (error) {
     output.error(`Authentication failed: ${(error as Error).message}`);
     output.info('You can try again later with: arden auth login');
-    
+
     // Don't fail the entire init process - continue with other setup
     return;
   }
@@ -110,9 +110,7 @@ async function handleUserSetup(options: InitOptions) {
 
 function showDetectionSummary({ claude, amp }: { claude: AgentDetection; amp: AgentDetection }) {
   if (claude.present) {
-    output.success(
-      `Claude Code found${claude.version ? ` (${claude.version})` : ''}`
-    );
+    output.success(`Claude Code found${claude.version ? ` (${claude.version})` : ''}`);
   }
 
   if (amp.present) {
@@ -132,7 +130,7 @@ async function handleClaudeSetup(_claude: AgentDetection, options: InitOptions) 
   output.warn('Arden hooks not found in Claude settings');
 
   let shouldInstall = options.yes;
-  
+
   if (!shouldInstall) {
     const { install } = await inquirer.prompt([
       {
@@ -172,8 +170,6 @@ async function handleClaudeSetup(_claude: AgentDetection, options: InitOptions) 
     throw new Error('Failed to initialize Claude hooks');
   }
 }
-
-
 
 async function spawnProcess(command: string, args: string[]): Promise<{ code: number }> {
   return new Promise(resolve => {
@@ -272,7 +268,7 @@ async function handleAmpHistoryUpload(options: InitOptions) {
   output.message(formatThreadSummary(threads));
 
   let shouldUpload = options.yes;
-  
+
   if (!shouldUpload) {
     const { upload } = await inquirer.prompt([
       {

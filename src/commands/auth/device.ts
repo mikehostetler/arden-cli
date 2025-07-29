@@ -1,8 +1,9 @@
-import { Socket, Channel } from 'phoenix';
-import WebSocket from 'ws';
 import open from 'open';
-import { output } from '../../util/logging';
+import { Channel, Socket } from 'phoenix';
+import WebSocket from 'ws';
+
 import { createClient } from '../../util/client';
+import { output } from '../../util/logging';
 import { reportError } from '../../util/telemetry';
 
 // WebSocket import for explicit transport configuration
@@ -62,7 +63,7 @@ function showAuthInstructions(code: string, host: string) {
 async function waitForAuthorization(topic: string, socketUrl: string): Promise<string> {
   return new Promise((resolve, reject) => {
     let socket: Socket;
-    
+
     try {
       socket = new Socket(socketUrl, {
         // Explicitly provide WebSocket implementation for Node.js
@@ -74,7 +75,7 @@ async function waitForAuthorization(topic: string, socketUrl: string): Promise<s
       output.error(errorMessage);
       process.exit(1);
     }
-    
+
     let connected = false;
 
     // Set up connection timeout

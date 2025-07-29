@@ -1,6 +1,8 @@
 import { Signale } from 'signale';
-import { sanitizeForDebug, sanitizeForJson } from './sanitize.js';
+
 import { getEnvLogLevel } from './env.js';
+import { sanitizeForDebug, sanitizeForJson } from './sanitize.js';
+import { getLogLevel } from './settings.js';
 
 /**
  * Unified logging and output system for Arden CLI
@@ -11,38 +13,41 @@ import { getEnvLogLevel } from './env.js';
  */
 
 // Signale configuration used by both logger and output
-const createSignaleConfig = (logLevel?: string) => ({
-  disabled: false,
-  interactive: false,
-  logLevel: logLevel || getEnvLogLevel() || 'info',
-  scope: 'arden-cli',
-  types: {
-    debug: {
-      badge: '🐛',
-      color: 'gray',
-      label: 'debug',
-      logLevel: 'debug',
+const createSignaleConfig = (logLevel?: string) => {
+  const level = logLevel || getEnvLogLevel() || 'info';
+  return {
+    disabled: false,
+    interactive: false,
+    logLevel: level,
+    scope: 'arden-cli',
+    types: {
+      debug: {
+        badge: '🐛',
+        color: 'gray',
+        label: 'debug',
+        logLevel: 'debug',
+      },
+      info: {
+        badge: 'ℹ',
+        color: 'blue',
+        label: 'info',
+        logLevel: 'info',
+      },
+      warn: {
+        badge: '⚠',
+        color: 'yellow',
+        label: 'warn',
+        logLevel: 'warn',
+      },
+      error: {
+        badge: '✖',
+        color: 'red',
+        label: 'error',
+        logLevel: 'error',
+      },
     },
-    info: {
-      badge: 'ℹ',
-      color: 'blue',
-      label: 'info',
-      logLevel: 'info',
-    },
-    warn: {
-      badge: '⚠',
-      color: 'yellow',
-      label: 'warn',
-      logLevel: 'warn',
-    },
-    error: {
-      badge: '✖',
-      color: 'red',
-      label: 'error',
-      logLevel: 'error',
-    },
-  },
-});
+  };
+};
 
 /**
  * Create a Signale logger instance with dynamic level support
@@ -51,8 +56,39 @@ export function createLogger(level?: string): Signale {
   return new Signale(createSignaleConfig(level));
 }
 
-// Default logger instance for diagnostic logging
-const baseLogger = createLogger();
+// Lazy logger that respects settings
+let _baseLogger: Signale | null = null;
+let _currentLogLevel: string | null = null;
+
+function getCurrentLogLevel(): string {
+  if (!_currentLogLevel) {
+    try {
+      const { getLogLevel } = require('./settings.js');
+      _currentLogLevel = getLogLevel() || getEnvLogLevel() || 'info';
+    } catch {
+      _currentLogLevel = getEnvLogLevel() || 'info';
+    }
+  }
+  return _currentLogLevel;
+}
+
+function getBaseLogger(): Signale {
+  if (!_baseLogger) {
+    // Try to import settings at runtime to avoid circular deps
+    try {
+      // Dynamic import to avoid circular dependency issues
+      const { getLogLevel } = require('./settings.js');
+      const settingsLogLevel = getLogLevel();
+      _baseLogger = createLogger(settingsLogLevel);
+      _currentLogLevel = settingsLogLevel;
+    } catch (error) {
+      // Fallback if settings can't be loaded
+      _baseLogger = createLogger();
+      _currentLogLevel = getEnvLogLevel() || 'info';
+    }
+  }
+  return _baseLogger;
+}
 
 /**
  * Diagnostic logger with pino-like interface and sanitization
@@ -60,32 +96,38 @@ const baseLogger = createLogger();
  */
 export const logger = {
   debug: (obj: unknown, msg?: string, ...args: unknown[]) => {
+    // Check if debug logging should be enabled
+    const currentLevel = getCurrentLogLevel();
+    if (currentLevel !== 'debug') {
+      return; // Skip debug logs if level is not debug
+    }
+    
     if (typeof obj === 'object' && obj !== null) {
       const sanitizedObj = sanitizeForDebug(obj);
-      baseLogger.debug(msg || '', sanitizedObj, ...args);
+      getBaseLogger().debug(msg || '', sanitizedObj, ...args);
     } else {
-      baseLogger.debug(obj, msg, ...args);
+      getBaseLogger().debug(obj, msg, ...args);
     }
   },
   info: (obj: unknown, msg?: string, ...args: unknown[]) => {
     if (typeof obj === 'string') {
-      baseLogger.info(obj, msg, ...args);
+      getBaseLogger().info(obj, msg, ...args);
     } else {
-      baseLogger.info(msg || '', obj, ...args);
+      getBaseLogger().info(msg || '', obj, ...args);
     }
   },
   warn: (obj: unknown, msg?: string, ...args: unknown[]) => {
     if (typeof obj === 'string') {
-      baseLogger.warn(obj, msg, ...args);
+      getBaseLogger().warn(obj, msg, ...args);
     } else {
-      baseLogger.warn(msg || '', obj, ...args);
+      getBaseLogger().warn(msg || '', obj, ...args);
     }
   },
   error: (obj: unknown, msg?: string, ...args: unknown[]) => {
     if (typeof obj === 'string') {
-      baseLogger.error(obj, msg, ...args);
+      getBaseLogger().error(obj, msg, ...args);
     } else {
-      baseLogger.error(msg || '', obj, ...args);
+      getBaseLogger().error(msg || '', obj, ...args);
     }
   },
 };

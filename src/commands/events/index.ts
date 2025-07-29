@@ -2,7 +2,6 @@ import { readFileSync } from 'fs';
 
 import { sendEvents } from '../../util/client';
 import { createCommand, createCommandAction, getResolvedConfig } from '../../util/command-base';
-
 import { logger, output } from '../../util/logging';
 import { buildEvent, validateEvent } from '../../util/schema';
 import { checkUserOrPrompt } from '../../util/user-prompt';

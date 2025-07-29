@@ -1,8 +1,8 @@
 import { Command, Option } from 'commander';
 import { z } from 'zod';
 
-import { createLogger, output } from './logging';
-import { getApiToken, getHost, getLogLevel, getSettingValue, getUserId } from './settings';
+import { output } from './logging';
+import { getHost, getUserId } from './settings';
 import { ValidationError } from './validation';
 
 /**
@@ -10,11 +10,7 @@ import { ValidationError } from './validation';
  */
 export interface GlobalOptions {
   host?: string | undefined;
-  token?: string | undefined;
   user?: string | undefined;
-  format?: 'json' | 'table' | 'yaml' | undefined;
-  verbose?: boolean | undefined;
-  quiet?: boolean | undefined;
   yes?: boolean | undefined;
 }
 
@@ -25,15 +21,7 @@ export function createCommand(name: string, description: string): Command {
   return new Command(name)
     .description(description)
     .addOption(new Option('-H, --host <url>', 'API host URL').env('ARDEN_HOST'))
-    .addOption(new Option('-t, --token <token>', 'API authentication token').env('ARDEN_API_TOKEN'))
     .addOption(new Option('-u, --user <user-id>', 'User ID').env('ARDEN_USER_ID'))
-    .addOption(
-      new Option('-f, --format <format>', 'Output format')
-        .choices(['json', 'table', 'yaml'])
-        .default('table')
-    )
-    .addOption(new Option('-v, --verbose', 'Enable verbose logging'))
-    .addOption(new Option('-q, --quiet', 'Suppress non-error output'))
     .addOption(new Option('-y, --yes', 'Assume yes for prompts'));
 }
 
@@ -43,11 +31,7 @@ export function createCommand(name: string, description: string): Command {
 export function getResolvedConfig(options: GlobalOptions) {
   return {
     host: getHost(options.host),
-    token: getApiToken(options.token),
     userId: getUserId(options.user),
-    format: getSettingValue('default_format', options.format) || 'table',
-    verbose: options.verbose || false,
-    quiet: options.quiet || false,
     yes: options.yes || false,
   };
 }
@@ -80,22 +64,6 @@ export function createCommandAction<T extends GlobalOptions>(
       }
 
       const config = getResolvedConfig(options);
-
-      // Create logger with appropriate level based on verbose/quiet flags
-      let logLevel = getLogLevel(); // Use settings-based default
-      if (options.verbose) {
-        logLevel = 'debug';
-      } else if (options.quiet) {
-        logLevel = 'error';
-      }
-
-      const logger = createLogger(logLevel);
-
-      // Only log debug info if explicitly verbose
-      if (options.verbose) {
-        logger.debug('Command options:', options);
-        logger.debug('Resolved config:', config);
-      }
 
       await handler(options, config);
     } catch (error) {
@@ -134,7 +102,7 @@ export function createCommandAction<T extends GlobalOptions>(
         exitCode = ErrorType.NETWORK;
       }
 
-      logger.error(`Command failed: ${message}`);
+
       output.error(message);
       process.exit(exitCode);
     }
@@ -143,15 +111,8 @@ export function createCommandAction<T extends GlobalOptions>(
 
 /**
  * Validate required configuration
+ * Note: Authentication is handled differently - tokens are not part of global options
  */
-export function requireAuth(config: ReturnType<typeof getResolvedConfig>): void {
-  if (!config.token) {
-    output.error(
-      'API token required. Use --token flag, set ARDEN_API_TOKEN environment variable, or edit ~/.arden/settings.json'
-    );
-    process.exit(1);
-  }
-}
 
 export function requireHost(config: ReturnType<typeof getResolvedConfig>): void {
   if (!config.host) {

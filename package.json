@@ -8,7 +8,7 @@
     "arden": "dist/index.js"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "bun scripts/build.ts",
     "build:watch": "tsup --watch",
     "dev": "bunx tsx watch src/index.ts",
     "dev:bun": "bun src/index.ts",
@@ -47,12 +47,16 @@
     "banner": {
       "js": "#!/usr/bin/env node\n"
     },
+    "define": {
+      "__VERSION__": "\"0.9.0\""
+    },
     "noExternal": [
       "commander",
       "chalk",
       "pino",
       "pino-pretty",
-      "inquirer"
+      "inquirer",
+      "@appsignal/javascript"
     ],
     "external": [
       "fs",
@@ -119,7 +123,6 @@
     "phoenix": "^1.7.21",
     "signale": "^1.4.0",
     "ws": "^8.18.3",
-    "znv": "^0.4.0",
     "zod": "^4.0.0"
   },
   "engines": {

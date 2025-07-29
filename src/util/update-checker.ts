@@ -1,6 +1,7 @@
-import ky from 'ky';
 import { readFileSync } from 'fs';
+import ky from 'ky';
 import { join } from 'path';
+
 import { logger, output } from './logging';
 import { loadSettings, saveSettings } from './settings';
 
@@ -93,7 +94,7 @@ function compareVersions(v1: string, v2: string): number {
 /**
  * Check if an update is available, with caching
  */
-export async function checkForUpdate(packageName: string = 'arden'): Promise<{
+export async function checkForUpdate(packageName = 'arden'): Promise<{
   updateAvailable: boolean;
   currentVersion: string;
   latestVersion: string;

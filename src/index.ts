@@ -1,6 +1,4 @@
 import { Command } from 'commander';
-import { readFileSync } from 'fs';
-import { join } from 'path';
 
 import { ampCommand } from './commands/amp';
 import { authCommand } from './commands/auth';
@@ -13,14 +11,9 @@ import { getHost } from './util/settings';
 import { initTelemetry, reportError, stopTelemetry } from './util/telemetry';
 import { checkAndDisplayUpdate } from './util/update-checker';
 
-let version = 'unknown';
-try {
-  const pkgPath = join(__dirname, '..', 'package.json');
-  const pkgJson = JSON.parse(readFileSync(pkgPath, 'utf-8'));
-  version = pkgJson.version || version;
-} catch {
-  logger.warn('Could not read version from package.json');
-}
+// Version is injected at build time by tsup
+declare const __VERSION__: string;
+const version = typeof __VERSION__ !== 'undefined' ? __VERSION__ : 'unknown';
 
 // Initialize telemetry
 initTelemetry();
@@ -44,6 +37,22 @@ program.addCommand(configCommand);
 // Run update check in background (don't await to avoid blocking CLI)
 checkAndDisplayUpdate().catch(() => {
   // Silently ignore update check failures
+});
+
+// Global error handlers for uncaught errors
+process.on('uncaughtException', error => {
+  reportError(error, { context: 'uncaught_exception' });
+  logger.error(`[Uncaught Exception] ${error.message}`);
+  stopTelemetry();
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  const error = reason instanceof Error ? reason : new Error(String(reason));
+  reportError(error, { context: 'unhandled_rejection', promise: String(promise) });
+  logger.error(`[Unhandled Rejection] ${error.message}`);
+  stopTelemetry();
+  process.exit(1);
 });
 
 // Handle graceful shutdown

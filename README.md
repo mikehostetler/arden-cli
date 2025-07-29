@@ -17,7 +17,7 @@ A command-line tool for tracking AI agent usage and sending telemetry to the Ard
 Install the CLI and run setup to configure your system automatically:
 
 ```bash
-npm install -g @arden/cli
+npm install -g arden
 arden setup
 ```
 
@@ -32,7 +32,7 @@ The setup command will:
 ### From npm
 
 ```bash
-npm install -g @arden/cli
+npm install -g arden
 ```
 
 ### From GitHub
