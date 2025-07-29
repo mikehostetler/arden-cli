@@ -33,11 +33,6 @@ program.addCommand(claudeCommand);
 program.addCommand(eventCommand);
 program.addCommand(configCommand);
 
-// Skip background update check for now to prevent hanging
-// checkAndDisplayUpdate().catch(() => {
-//   // Silently ignore update check failures
-// });
-
 // Global error handlers for uncaught errors
 process.on('uncaughtException', error => {
   reportError(error, { context: 'uncaught_exception' });
