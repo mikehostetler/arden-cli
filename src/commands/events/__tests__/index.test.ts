@@ -1,11 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test';
-import { Command } from 'commander';
 
 import { eventCommand } from '../index';
 
 describe('event command', () => {
-  let mockExit: any;
-  let mockConsoleLog: any;
+  let mockExit: ReturnType<typeof spyOn>;
+  let mockConsoleLog: ReturnType<typeof spyOn>;
 
   beforeEach(() => {
     mockExit = spyOn(process, 'exit').mockImplementation(() => undefined as never);

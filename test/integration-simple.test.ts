@@ -102,7 +102,7 @@ describe('CLI Basic Integration Tests', () => {
 
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('config');
-      expect(result.stdout).toContain('Display current');
+      expect(result.stdout).toContain('View and manage');
     });
 
     it('should show event command help', async () => {
@@ -160,7 +160,7 @@ describe('CLI Basic Integration Tests', () => {
       const result = await runCli(['config']);
 
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('Current configuration');
+      expect(result.stdout).toContain('Configuration');
     });
   });
 

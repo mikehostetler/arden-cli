@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 
-import { output } from '../src/util/output';
+import { output } from '../src/util/logging';
 import { mockConsoleOutput, mockStdStreams } from './setup';
 
 /**

@@ -144,7 +144,7 @@ export class Client {
     // Use p-map for controlled parallel processing
     const results = await pMap(
       chunks,
-      async (chunk, index) => {
+      async (chunk, _index) => {
         const result = await this.sendChunk(chunk);
         if (progressBar) {
           progressBar.increment();
@@ -211,7 +211,7 @@ export class Client {
             try {
               const errorBody = await response.json();
               logger.error('Response body:', errorBody);
-            } catch (e) {
+            } catch {
               logger.error('Could not parse error response body');
             }
           }

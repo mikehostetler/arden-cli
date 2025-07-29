@@ -2,7 +2,6 @@ import { Signale } from 'signale';
 
 import { getEnvLogLevel } from './env.js';
 import { sanitizeForDebug, sanitizeForJson } from './sanitize.js';
-import { getLogLevel } from './settings.js';
 
 /**
  * Unified logging and output system for Arden CLI
@@ -81,7 +80,7 @@ function getBaseLogger(): Signale {
       const settingsLogLevel = getLogLevel();
       _baseLogger = createLogger(settingsLogLevel);
       _currentLogLevel = settingsLogLevel;
-    } catch (error) {
+    } catch {
       // Fallback if settings can't be loaded
       _baseLogger = createLogger();
       _currentLogLevel = getEnvLogLevel() || 'info';
@@ -101,7 +100,7 @@ export const logger = {
     if (currentLevel !== 'debug') {
       return; // Skip debug logs if level is not debug
     }
-    
+
     if (typeof obj === 'object' && obj !== null) {
       const sanitizedObj = sanitizeForDebug(obj);
       getBaseLogger().debug(msg || '', sanitizedObj, ...args);

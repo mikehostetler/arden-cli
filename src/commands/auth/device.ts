@@ -1,5 +1,5 @@
 import open from 'open';
-import { Channel, Socket } from 'phoenix';
+import { Socket } from 'phoenix';
 import WebSocket from 'ws';
 
 import { createClient } from '../../util/client';
@@ -35,7 +35,7 @@ export async function deviceAuthFlow(host: string): Promise<string> {
         const deviceUrl = `${host}/device/${response.short_code}`;
         await open(deviceUrl);
         output.info('Browser opened automatically');
-      } catch (error) {
+      } catch {
         // Ignore browser opening errors - user can still open manually
       }
     }

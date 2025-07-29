@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
-import { join } from 'path';
 
 import {
   AmpThread,

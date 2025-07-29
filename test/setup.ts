@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, mock } from 'bun:test';
-import { type ExecaChildProcess } from 'execa';
 import { existsSync, mkdirSync, rmSync } from 'fs';
-import { homedir, tmpdir } from 'os';
+import { tmpdir } from 'os';
 import { join } from 'path';
 
 /**

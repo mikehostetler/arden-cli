@@ -57,10 +57,8 @@ module.exports = [
   {
     // Allow console usage only in specific files
     files: [
-      'src/util/logger.ts',
+      'src/util/logging.ts',
       'src/index.ts',
-      'src/util/output.ts',
-      'src/util/settings.ts',
       'scripts/**/*.ts'
     ],
     rules: {
@@ -69,7 +67,7 @@ module.exports = [
   },
   {
     // Test files get relaxed rules
-    files: ['test/**/*.ts'],
+    files: ['test/**/*.ts', 'src/**/__tests__/**/*.ts', 'src/**/*.test.ts'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       'no-console': 'off',

@@ -18,27 +18,33 @@ const EnvSchema = z.object({
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).optional(),
 });
 
-const rawEnv = {
-  NODE_ENV: process.env['NODE_ENV'],
-  ARDEN_API_TOKEN: process.env['ARDEN_API_TOKEN'],
-  ARDEN_USER_ID: process.env['ARDEN_USER_ID'],
-  ARDEN_HOST: process.env['ARDEN_HOST'],
-  ARDEN_LOG_LEVEL: process.env['ARDEN_LOG_LEVEL'],
-  ARDEN_DEFAULT_FORMAT: process.env['ARDEN_DEFAULT_FORMAT'],
-  ARDEN_INTERACTIVE: process.env['ARDEN_INTERACTIVE'],
-  HOST: process.env['HOST'],
-  LOG_LEVEL: process.env['LOG_LEVEL'],
-};
-
-// Validate and parse environment variables
-const envResult = EnvSchema.safeParse(rawEnv);
-
-if (!envResult.success) {
-  // eslint-disable-next-line no-console
-  console.warn(`Invalid environment variables: ${envResult.error.message}`);
+// Function to get current environment variables dynamically
+function getRawEnv() {
+  return {
+    NODE_ENV: process.env['NODE_ENV'],
+    ARDEN_API_TOKEN: process.env['ARDEN_API_TOKEN'],
+    ARDEN_USER_ID: process.env['ARDEN_USER_ID'],
+    ARDEN_HOST: process.env['ARDEN_HOST'],
+    ARDEN_LOG_LEVEL: process.env['ARDEN_LOG_LEVEL'],
+    ARDEN_DEFAULT_FORMAT: process.env['ARDEN_DEFAULT_FORMAT'],
+    ARDEN_INTERACTIVE: process.env['ARDEN_INTERACTIVE'],
+    HOST: process.env['HOST'],
+    LOG_LEVEL: process.env['LOG_LEVEL'],
+  };
 }
 
-const env = envResult.success ? envResult.data : EnvSchema.parse({});
+// Function to get validated environment variables
+function getEnv() {
+  const rawEnv = getRawEnv();
+  const envResult = EnvSchema.safeParse(rawEnv);
+
+  if (!envResult.success) {
+    // eslint-disable-next-line no-console
+    console.warn(`Invalid environment variables: ${envResult.error.message}`);
+  }
+
+  return envResult.success ? envResult.data : EnvSchema.parse({});
+}
 
 // Track which deprecation warnings have been shown to avoid spam
 const shownWarnings = new Set<string>();
@@ -53,14 +59,17 @@ function showDeprecationWarning(message: string): void {
 
 // Helper functions for environment variable access with deprecation warnings
 export function getEnvApiToken(): string | undefined {
+  const env = getEnv();
   return env.ARDEN_API_TOKEN;
 }
 
 export function getEnvUserId(): string | undefined {
+  const env = getEnv();
   return env.ARDEN_USER_ID;
 }
 
 export function getEnvHost(): string | undefined {
+  const env = getEnv();
   // Handle legacy HOST with deprecation warning
   if (env.HOST && !env.ARDEN_HOST) {
     showDeprecationWarning(
@@ -72,6 +81,7 @@ export function getEnvHost(): string | undefined {
 }
 
 export function getEnvLogLevel(): string | undefined {
+  const env = getEnv();
   // Handle legacy LOG_LEVEL with deprecation warning
   if (env.LOG_LEVEL && !env.ARDEN_LOG_LEVEL) {
     showDeprecationWarning(
@@ -83,10 +93,12 @@ export function getEnvLogLevel(): string | undefined {
 }
 
 export function getEnvDefaultFormat(): string | undefined {
+  const env = getEnv();
   return env.ARDEN_DEFAULT_FORMAT;
 }
 
 export function getEnvInteractive(): boolean | undefined {
+  const env = getEnv();
   return env.ARDEN_INTERACTIVE === 'true'
     ? true
     : env.ARDEN_INTERACTIVE === 'false'
@@ -94,4 +106,4 @@ export function getEnvInteractive(): boolean | undefined {
       : undefined;
 }
 
-export default env;
+export default getEnv();

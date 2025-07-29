@@ -45,7 +45,7 @@ export function buildInitCommand(): Command {
     .action(run);
 }
 
-async function run(opts: InitOpts, command: Command) {
+async function run(opts: InitOpts, _command: Command) {
   const settingsPath = expandTilde(opts.settings);
 
   output.info(`Configuring Claude Code hooks for: ${settingsPath}`);

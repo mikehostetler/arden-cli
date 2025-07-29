@@ -1,6 +1,6 @@
 // Claude Code agent ID constant
 import { sendTelemetry } from '../../util/client';
-import { logger, output } from '../../util/logging';
+import { output } from '../../util/logging';
 import { getCurrentDateISO } from '../../util/time';
 import { ClaudeHook } from './hooks';
 
@@ -21,9 +21,9 @@ export async function handleClaudeHook(hook: ClaudeHook, opts: ClaudeHookOptions
 
     try {
       payload = JSON.parse(stdinData);
-    } catch (e) {
+    } catch {
       // Invalid JSON - exit with code 2 for blocking error
-      console.error(`Invalid JSON received for hook ${hook}`);
+      process.stderr.write(`Invalid JSON received for hook ${hook}\n`);
       process.exit(2);
     }
 
@@ -48,7 +48,7 @@ export async function handleClaudeHook(hook: ClaudeHook, opts: ClaudeHookOptions
 
     // Skip API call in dry-run mode
     if (opts.dryRun) {
-      console.error(`[DRY RUN] Would send telemetry for hook: ${hook}`);
+      process.stderr.write(`[DRY RUN] Would send telemetry for hook: ${hook}\n`);
       return;
     }
 
@@ -59,7 +59,7 @@ export async function handleClaudeHook(hook: ClaudeHook, opts: ClaudeHookOptions
     process.exit(0);
   } catch (error) {
     // Non-blocking error - output to stderr and exit with non-zero code
-    console.error(`Failed to handle Claude hook ${hook}: ${(error as Error).message}`);
+    process.stderr.write(`Failed to handle Claude hook ${hook}: ${(error as Error).message}\n`);
     process.exit(1);
   }
 }

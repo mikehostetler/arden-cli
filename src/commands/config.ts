@@ -1,11 +1,10 @@
+import chalk from 'chalk';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
 import { createInterface } from 'readline';
 
-import chalk from 'chalk';
-
-import { createCommand, createCommandAction } from '../util/command-base';
+import { createCommand } from '../util/command-base';
 import { output } from '../util/logging';
 import { ArdenSettings, loadSettings, saveSettings } from '../util/settings';
 import { skipCurrentVersion } from '../util/update-checker';
@@ -17,7 +16,7 @@ export const configCommand = createCommand('config', 'View and manage Arden CLI 
   .option('--skip-version', 'Skip the current version in future update checks')
   .option('--reset', 'Reset configuration to default values')
   .option('--list', 'List all configuration keys and their current values')
-  .action(async (key?: string, value?: string, _command?: any, thisCommand?: any) => {
+  .action(async (key?: string, value?: string, _command?: unknown, thisCommand?: unknown) => {
     try {
       const options = (thisCommand || _command).opts() as ConfigOptions;
       const validatedOptions = ConfigOptionsSchema.parse(options);
@@ -81,17 +80,17 @@ async function showAllConfig() {
   const settings = loadSettings();
   const configPath = join(homedir(), '.arden', 'settings.json');
 
-  console.log(chalk.bold('Configuration'));
-  console.log('');
+  output.message(chalk.bold('Configuration'));
+  output.message('');
 
   // Show all configurable keys with their values or defaults
   for (const key of CONFIGURABLE_KEYS) {
     const value = settings[key];
     const defaultValue = CONFIG_DEFAULTS[key];
-    
+
     let displayValue: string;
     let isDefault = false;
-    
+
     if (value !== undefined) {
       displayValue = String(value);
     } else if (defaultValue !== undefined) {
@@ -101,14 +100,14 @@ async function showAllConfig() {
       displayValue = '(not set)';
       isDefault = true;
     }
-    
+
     const keyFormatted = chalk.cyan(key.padEnd(17));
     const valueFormatted = isDefault ? chalk.dim(displayValue) : displayValue;
-    console.log(`${keyFormatted} ${valueFormatted}`);
+    output.message(`${keyFormatted} ${valueFormatted}`);
   }
 
-  console.log('');
-  console.log(chalk.dim(`Config file: ${configPath}`));
+  output.message('');
+  output.message(chalk.dim(`Config file: ${configPath}`));
 }
 
 async function showConfigValue(key: ConfigurableKey) {
@@ -116,13 +115,13 @@ async function showConfigValue(key: ConfigurableKey) {
   const value = settings[key];
 
   if (value !== undefined) {
-    console.log(`${chalk.cyan(key)} ${String(value)}`);
+    output.message(`${chalk.cyan(key)} ${String(value)}`);
   } else {
     const defaultValue = CONFIG_DEFAULTS[key];
     if (defaultValue !== undefined) {
-      console.log(`${chalk.cyan(key)} ${chalk.dim(String(defaultValue) + ' (default)')}`);
+      output.message(`${chalk.cyan(key)} ${chalk.dim(String(defaultValue) + ' (default)')}`);
     } else {
-      console.log(`${chalk.cyan(key)} ${chalk.dim('(not set)')}`);
+      output.message(`${chalk.cyan(key)} ${chalk.dim('(not set)')}`);
     }
   }
 }
@@ -153,7 +152,7 @@ async function setConfigValue(key: ConfigurableKey, value: string) {
     const updateObj = { [key]: parsedValue } as Partial<ArdenSettings>;
     saveSettings(updateObj);
 
-    console.log(`${chalk.cyan(key)} ${chalk.green('→')} ${String(parsedValue)}`);
+    output.message(`${chalk.cyan(key)} ${chalk.green('→')} ${String(parsedValue)}`);
   } catch (error) {
     output.error(
       `Failed to set configuration: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -177,25 +176,27 @@ async function resetConfig() {
     });
 
     if (settingsToReset.length === 0) {
-      console.log('No configuration to reset (already using defaults)');
+      output.message('No configuration to reset (already using defaults)');
       return;
     }
 
     // Show what will be reset
-    console.log(chalk.yellow('The following configuration will be reset to defaults:'));
-    console.log('');
+    output.message(chalk.yellow('The following configuration will be reset to defaults:'));
+    output.message('');
     for (const key of settingsToReset) {
       const currentValue = settings[key];
       const defaultValue = CONFIG_DEFAULTS[key];
       const displayDefault = defaultValue !== undefined ? String(defaultValue) : '(not set)';
-      console.log(`${chalk.cyan(key.padEnd(17))} ${chalk.dim(String(currentValue))} ${chalk.red('→')} ${chalk.dim(displayDefault)}`);
+      output.message(
+        `${chalk.cyan(key.padEnd(17))} ${chalk.dim(String(currentValue))} ${chalk.red('→')} ${chalk.dim(displayDefault)}`
+      );
     }
-    console.log('');
+    output.message('');
 
     // Confirm with user
     const confirmed = await confirm('Are you sure you want to reset your configuration? (y/N)');
     if (!confirmed) {
-      console.log('Reset cancelled');
+      output.message('Reset cancelled');
       return;
     }
 
@@ -203,12 +204,12 @@ async function resetConfig() {
     // We need to read the raw file to preserve internal settings that aren't exposed via config
 
     const configPath = join(homedir(), '.arden', 'settings.json');
-    let currentFileSettings: any = {};
+    let currentFileSettings: Record<string, unknown> = {};
 
     if (existsSync(configPath)) {
       try {
         const data = readFileSync(configPath, 'utf8');
-        currentFileSettings = JSON.parse(data);
+        currentFileSettings = JSON.parse(data) as Record<string, unknown>;
       } catch {
         // Ignore parsing errors, start fresh
       }
@@ -223,8 +224,8 @@ async function resetConfig() {
     const data = JSON.stringify(currentFileSettings, null, 2);
     writeFileSync(configPath, data, 'utf8');
 
-    console.log(chalk.green('✓ Configuration reset to default values'));
-    console.log('');
+    output.success('Configuration reset to default values');
+    output.message('');
     await showAllConfig();
   } catch (error) {
     output.error(

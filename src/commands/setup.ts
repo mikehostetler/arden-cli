@@ -255,6 +255,7 @@ async function handleAmpSync(options: InitOptions) {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function handleAmpHistoryUpload(options: InitOptions) {
   output.info('Checking for existing Amp thread history...');
 

@@ -109,12 +109,14 @@ export function loadSettings(): ArdenSettings {
       if (validation.success) {
         fileSettings = validation.data;
       } else {
-        console.warn(`Invalid settings file format: ${validation.error.message}`);
+        process.stderr.write(
+          `Warning: Invalid settings file format: ${validation.error.message}\n`
+        );
       }
     }
   } catch (error) {
-    console.warn(
-      `Failed to read settings file: ${error instanceof Error ? error.message : 'Unknown error'}`
+    process.stderr.write(
+      `Warning: Failed to read settings file: ${error instanceof Error ? error.message : 'Unknown error'}\n`
     );
   }
 
@@ -156,7 +158,7 @@ export function loadSettings(): ArdenSettings {
   const validation = ArdenSettingsSchema.safeParse(mergedSettings);
 
   if (!validation.success) {
-    console.warn(`Invalid settings configuration: ${validation.error.message}`);
+    process.stderr.write(`Warning: Invalid settings configuration: ${validation.error.message}\n`);
     return defaults;
   }
 

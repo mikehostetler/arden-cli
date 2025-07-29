@@ -102,7 +102,6 @@ export function createCommandAction<T extends GlobalOptions>(
         exitCode = ErrorType.NETWORK;
       }
 
-
       output.error(message);
       process.exit(exitCode);
     }
