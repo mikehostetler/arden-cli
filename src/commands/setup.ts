@@ -1,3 +1,4 @@
+import chalk from 'chalk';
 import { spawn } from 'child_process';
 import inquirer from 'inquirer';
 
@@ -50,7 +51,7 @@ async function runInit(options: InitOptions, config: ReturnType<typeof getResolv
     await handleClaudeSetup(claude, initOptions);
     await handleClaudeSync(initOptions);
   } else {
-    output.info("Claude Code not found. Skip if you don't use Claude Code.");
+    output.message(chalk.dim("Claude Code not found. Skip if you don't use Claude Code."));
   }
 
   // Amp setup flow
@@ -62,10 +63,16 @@ async function runInit(options: InitOptions, config: ReturnType<typeof getResolv
   await ensureApiToken(initOptions);
 
   showSuccessMessage();
+  
+  // Force cleanup of any lingering timers/handles
+  process.nextTick(() => {
+    process.exit(0);
+  });
 }
 
 function showBanner() {
-  output.message('Initializing Arden CLI...\n');
+  output.message(chalk.bold('Arden CLI Setup'));
+  output.message('');
 }
 
 function checkNodeVersion() {
@@ -81,15 +88,17 @@ async function handleUserSetup(options: InitOptions) {
   const currentUserId = getUserId();
 
   if (currentUserId) {
-    output.success(`User ID already configured: ${currentUserId}`);
+    output.message(`${chalk.cyan('User ID'.padEnd(17))} ${currentUserId} ${chalk.green('✓')}`);
     return;
   }
 
-  output.info('Authenticating...');
+  output.message(chalk.dim('Authenticating...'));
 
   if (options.yes) {
-    output.info('Skipping authentication (--yes mode). You can authenticate later with:');
-    output.info('  arden auth login');
+    output.message(
+      chalk.dim('Skipping authentication (--yes mode). You can authenticate later with:')
+    );
+    output.message(chalk.dim('  arden auth login'));
     return;
   }
 
@@ -98,10 +107,10 @@ async function handleUserSetup(options: InitOptions) {
     const settings = loadSettings();
     settings.user_id = ulid;
     saveSettings(settings);
-    output.success('Authenticated successfully');
+    output.message(`${chalk.cyan('User ID'.padEnd(17))} ${ulid} ${chalk.green('✓')}`);
   } catch (error) {
     output.error(`Authentication failed: ${(error as Error).message}`);
-    output.info('You can try again later with: arden auth login');
+    output.message(chalk.dim('You can try again later with: arden auth login'));
 
     // Don't fail the entire init process - continue with other setup
     return;
@@ -110,11 +119,13 @@ async function handleUserSetup(options: InitOptions) {
 
 function showDetectionSummary({ claude, amp }: { claude: AgentDetection; amp: AgentDetection }) {
   if (claude.present) {
-    output.success(`Claude Code found${claude.version ? ` (${claude.version})` : ''}`);
+    output.message(
+      `${chalk.cyan('Claude Code'.padEnd(17))} ${claude.version || 'detected'} ${chalk.green('✓')}`
+    );
   }
 
   if (amp.present) {
-    output.success(`Amp found`);
+    output.message(`${chalk.cyan('Amp'.padEnd(17))} detected ${chalk.green('✓')}`);
   }
 }
 
@@ -123,7 +134,7 @@ async function handleClaudeSetup(_claude: AgentDetection, options: InitOptions) 
   const needsInstall = await checkClaudeHooks(settingsPath);
 
   if (!needsInstall) {
-    output.success('Claude Code configured');
+    output.message(`${chalk.cyan('Claude hooks'.padEnd(17))} configured ${chalk.green('✓')}`);
     return;
   }
 
@@ -165,7 +176,7 @@ async function handleClaudeSetup(_claude: AgentDetection, options: InitOptions) 
   const result = await spawnProcess(process.execPath, args.slice(1));
 
   if (result.code === 0) {
-    output.success('Claude hooks initialized successfully');
+    output.message(`${chalk.cyan('Claude hooks'.padEnd(17))} initialized ${chalk.green('✓')}`);
   } else {
     throw new Error('Failed to initialize Claude hooks');
   }
@@ -192,11 +203,11 @@ async function spawnProcess(command: string, args: string[]): Promise<{ code: nu
 async function handleClaudeSync(options: InitOptions) {
   const currentUserId = getUserId();
   if (!currentUserId) {
-    output.info('Skipping Claude sync - no user ID configured');
+    output.message(chalk.dim('Skipping Claude sync - no user ID configured'));
     return;
   }
 
-  output.info('Syncing Claude Code usage logs...');
+  output.message(chalk.dim('Syncing Claude Code usage logs...'));
 
   try {
     const args = [
@@ -210,7 +221,7 @@ async function handleClaudeSync(options: InitOptions) {
     const result = await spawnProcess(process.execPath, args.slice(1));
 
     if (result.code === 0) {
-      output.success('Claude logs synced successfully');
+      output.message(`${chalk.cyan('Claude sync'.padEnd(17))} completed ${chalk.green('✓')}`);
     } else {
       output.warn('Claude sync completed with warnings (see above)');
     }
@@ -223,12 +234,12 @@ async function handleClaudeSync(options: InitOptions) {
 async function handleAmpSync(options: InitOptions) {
   const currentUserId = getUserId();
   if (!currentUserId) {
-    output.info('Skipping Amp sync - no user ID configured');
+    output.message(chalk.dim('Skipping Amp sync - no user ID configured'));
     return;
   }
 
   // Use the regular amp sync command which works correctly
-  output.info('Syncing Amp usage logs...');
+  output.message(chalk.dim('Syncing Amp usage logs...'));
 
   try {
     const threadsPath = expandTilde('~/.amp/file-changes');
@@ -245,7 +256,7 @@ async function handleAmpSync(options: InitOptions) {
     const result = await spawnProcess(process.execPath, args.slice(1));
 
     if (result.code === 0) {
-      output.success('Amp logs synced successfully');
+      output.message(`${chalk.cyan('Amp sync'.padEnd(17))} completed ${chalk.green('✓')}`);
     } else {
       output.warn('Amp sync completed with warnings (see above)');
     }
@@ -309,6 +320,8 @@ async function handleAmpHistoryUpload(options: InitOptions) {
 }
 
 function showSuccessMessage() {
-  output.success('Setup complete!');
-  output.message('\nView your usage analytics at https://ardenstats.com');
+  output.message('');
+  output.message(chalk.green('✓ Setup complete!'));
+  output.message('');
+  output.message(`${chalk.cyan('Analytics'.padEnd(17))} https://ardenstats.com`);
 }

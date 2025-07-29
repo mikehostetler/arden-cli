@@ -1,3 +1,4 @@
+import chalk from 'chalk';
 import * as cliProgress from 'cli-progress';
 import { Command } from 'commander';
 import * as fs from 'fs';
@@ -74,7 +75,7 @@ async function syncAmpThreads(options: AmpOptions): Promise<void> {
     return;
   }
 
-  output.info(`Found ${threads.length} Amp thread directories`);
+  output.message(chalk.dim(`Found ${threads.length} Amp thread directories`));
 
   // Filter threads that need syncing
   const threadsToSync = [];

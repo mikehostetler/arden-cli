@@ -9,7 +9,6 @@ import { initCommand } from './commands/setup';
 import { logger } from './util/logging';
 import { getHost } from './util/settings';
 import { initTelemetry, reportError, stopTelemetry } from './util/telemetry';
-import { checkAndDisplayUpdate } from './util/update-checker';
 
 // Version is injected at build time by tsup
 declare const __VERSION__: string;
@@ -34,10 +33,10 @@ program.addCommand(claudeCommand);
 program.addCommand(eventCommand);
 program.addCommand(configCommand);
 
-// Run update check in background (don't await to avoid blocking CLI)
-checkAndDisplayUpdate().catch(() => {
-  // Silently ignore update check failures
-});
+// Skip background update check for now to prevent hanging
+// checkAndDisplayUpdate().catch(() => {
+//   // Silently ignore update check failures
+// });
 
 // Global error handlers for uncaught errors
 process.on('uncaughtException', error => {

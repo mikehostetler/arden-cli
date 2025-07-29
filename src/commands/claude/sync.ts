@@ -1,3 +1,4 @@
+import chalk from 'chalk';
 import * as cliProgress from 'cli-progress';
 import { Command } from 'commander';
 import * as fs from 'fs';
@@ -79,7 +80,7 @@ async function syncClaudeUsage(options: ClaudeOptions): Promise<void> {
     return;
   }
 
-  output.info(`Found ${jsonlFiles.length} Claude Code session files`);
+  output.message(chalk.dim(`Found ${jsonlFiles.length} Claude Code session files`));
 
   const limit = parseInt(options.limit, 10);
 

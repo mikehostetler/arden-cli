@@ -1,3 +1,4 @@
+import chalk from 'chalk';
 import { Command } from 'commander';
 import { promises as fs } from 'fs';
 import { homedir } from 'os';
@@ -48,7 +49,7 @@ export function buildInitCommand(): Command {
 async function run(opts: InitOpts, _command: Command) {
   const settingsPath = expandTilde(opts.settings);
 
-  output.info(`Configuring Claude Code hooks for: ${settingsPath}`);
+  output.message(chalk.dim(`Configuring Claude Code hooks for: ${settingsPath}`));
 
   try {
     const { json, modified } = await ensureHooks(settingsPath);
@@ -59,13 +60,13 @@ async function run(opts: InitOpts, _command: Command) {
     }
 
     if (!opts.yes && !(await confirm(`Write changes to ${settingsPath}? (y/N)`))) {
-      output.info('Aborted.');
+      output.message(chalk.dim('Aborted.'));
       return;
     }
 
     await writeFileAtomic(settingsPath, JSON.stringify(json, null, 2) + '\n');
     output.success(`Claude hooks initialized in ${settingsPath}`);
-    output.info('Claude Code will now send Stop and SubagentStop events to Arden.');
+    output.message(chalk.dim('Claude Code will now send Stop and SubagentStop events to Arden.'));
   } catch (error) {
     output.error(`Failed to initialize Claude hooks: ${(error as Error).message}`);
     process.exit(1);
